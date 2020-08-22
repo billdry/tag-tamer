@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <meta name="author" content="Bill Dry">
+        <meta name="author" content="Bill Dry - bdry@amazon.com">
         <meta name="description" content="Locate AWS Config rules">
         <meta name="keywords" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -26,7 +26,8 @@
                         </tbody>
                     </table>
 
-        <form method="post" action="{{ url_for('set_config_rules') }}">            
+        <form method="post" action="{{ url_for('set_config_rules') }}">  
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>          
                     <div class="form-group">
                         <select multiple class="custom-select" id="FormControlSelect1" name="tag_groups_to_assign" size="10">
                         {% for tag_group_name, tag_group_key in tag_group_inventory.items() %}
@@ -66,6 +67,7 @@
         <br>
         <span style="text-align:center;">
             <form method="get" action="{{ url_for('actions') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <button type="submit" class="btn btn-primary btn-lg">Home</button>
                 <button type="submit" class="btn btn-outline-primary btn-lg">Cancel</button>
             </form>

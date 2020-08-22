@@ -3,7 +3,7 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <meta name="author" content="Bill Dry">
+        <meta name="author" content="Bill Dry - bdry@amazon.com">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <title>Your Found Tags</title>
         <meta name="description" content="Format & display found tags">
@@ -42,6 +42,7 @@
     
         <div class="container">
             <form method="get" action="{{ url_for('actions') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <button type="submit" class="btn btn-primary btn-lg">Home</button>
             </form>
         </div>    

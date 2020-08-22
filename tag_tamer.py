@@ -27,6 +27,7 @@ from service_catalog import service_catalog
 # Import flask framework module & classes to build API's
 import flask
 from flask import Flask, request, render_template, jsonify
+from flask_wtf.csrf import CSRFProtect
 # Import JSON parser
 import json
 # Import logging module
@@ -48,7 +49,10 @@ logging.getLogger('werkzeug').setLevel('ERROR')
 
 # Instantiate flask API application
 app = flask.Flask(__name__)
+app.secret_key = b'\xf9\xca\xf7{z\xb18\\\xa2g\xa2\xfb \xc4\xd4\xf8'
 app.config["DEBUG"] = True
+csrf = CSRFProtect(app)
+csrf.init_app(app)
 
 # Get user-specified AWS regions
 selected_regions = tag_tamer_parameters['parameters']['selected_regions']
