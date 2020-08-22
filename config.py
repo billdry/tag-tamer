@@ -10,6 +10,7 @@ import boto3
 import json
 # Import logging module
 import logging
+
 log = logging.getLogger(__name__)
 
 # Define AWS Config class to get/set items using Boto3
@@ -25,31 +26,39 @@ class config:
         response = dict()
         all_config_rules = dict()
         response = self.config_client.describe_config_rules()
-        all_config_rules = response['ConfigRules'][0]
-        
-        config_rule = dict()
+        all_config_rules = response['ConfigRules']
+
+        required_tags_config_rules = dict()
         input_parameters_dict = dict()
-        if all_config_rules['Source']['SourceIdentifier'] == 'REQUIRED_TAGS':
-            input_parameters_dict = json.loads(all_config_rules['InputParameters'])
-            config_rule['ConfigRuleName'] = all_config_rules['ConfigRuleName']
-            for key, value in input_parameters_dict.items():
-                config_rule[key] = value
+        for rule in all_config_rules:
+            if rule['Source']['SourceIdentifier'] == 'REQUIRED_TAGS':
+                input_parameters_dict = json.loads(rule['InputParameters'])
+                required_tags_config_rules['ConfigRuleName'] = rule['ConfigRuleName']
+                required_tags_config_rules['ComplianceResourceTypes'] = rule['Scope']['ComplianceResourceTypes']
+                for key, value in input_parameters_dict.items():
+                    required_tags_config_rules[key] = value
+                input_parameters_dict.clear()
         
-        return config_rule
+        return required_tags_config_rules
 
     #Get REQUIRED_TAGS Config Rule names & ID's
     def get_config_rules_ids_names(self):
         response = dict()
         all_config_rules = dict()
-        response = self.config_client.describe_config_rules()
-        all_config_rules = response['ConfigRules']
+        try:
+            response = self.config_client.describe_config_rules()
+            all_config_rules = response['ConfigRules']
 
-        config_rules_ids_names = dict()
-        for configRule in all_config_rules:
-            if configRule['Source']['SourceIdentifier'] == 'REQUIRED_TAGS':
-                config_rules_ids_names[configRule['ConfigRuleId']] = configRule['ConfigRuleName']
-        
-        return config_rules_ids_names
+            config_rules_ids_names = dict()
+            for configRule in all_config_rules:
+                if configRule['Source']['SourceIdentifier'] == 'REQUIRED_TAGS':
+                    config_rules_ids_names[configRule['ConfigRuleId']] = configRule['ConfigRuleName']
+                
+            return config_rules_ids_names
+
+        except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {}"
+                log.error(errorString.format(error))
 
     #Set REQUIRED_TAGS Config Rule
     def set_config_rules(self, tag_groups_keys_values, config_rule_id):
@@ -58,11 +67,15 @@ class config:
             # convert selected Tag Groups into JSON for Boto3 input to
             # this Config Rule's underlying Lambda :
             input_parameters_json = json.dumps(tag_groups_keys_values)
-            
+            config_rule_current_parameters = dict()
+            config_rule_current_parameters = self.get_config_rule(config_rule_id)
             try:
                 self.config_client.put_config_rule(
                     ConfigRule={
                         'ConfigRuleId': config_rule_id,
+                        'Scope': {
+                            'ComplianceResourceTypes': config_rule_current_parameters['ComplianceResourceTypes']
+                        },
                         'InputParameters': input_parameters_json,
                         'Source': {
                             'Owner': 'AWS',
@@ -70,6 +83,7 @@ class config:
                         }    
                     }
                 )
+                log.debug('REQUIRED_TAGS Config Rule \"%s\" updated with these parameters: \"%s\"', config_rule_id, input_parameters_json)
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {}"
                 log.error(errorString.format(error))

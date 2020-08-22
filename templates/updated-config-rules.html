@@ -31,11 +31,11 @@
                                 <tbody>
                                 
                                     {% for found_key, found_values in updated_config_rule.items() %}
-                                            
-                                            <tr>
-                                                <td>{{ found_key }}</td><td>{{ found_values }}</td>
-                                            </tr>
-                                            
+                                            {% if 'tag' in found_key %}
+                                                <tr>
+                                                    <td>{{ found_key }}</td><td>{{ found_values }}</td>
+                                                </tr>
+                                            {% endif %}
                                     {% endfor %}
                                 
                                 </tbody>
