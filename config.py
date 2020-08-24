@@ -25,21 +25,26 @@ class config:
     def get_config_rule(self, config_rule_id):
         response = dict()
         all_config_rules = dict()
-        response = self.config_client.describe_config_rules()
-        all_config_rules = response['ConfigRules']
+        try:
+            response = self.config_client.describe_config_rules()
+            all_config_rules = response['ConfigRules']
 
-        required_tags_config_rules = dict()
-        input_parameters_dict = dict()
-        for rule in all_config_rules:
-            if rule['Source']['SourceIdentifier'] == 'REQUIRED_TAGS':
-                input_parameters_dict = json.loads(rule['InputParameters'])
-                required_tags_config_rules['ConfigRuleName'] = rule['ConfigRuleName']
-                required_tags_config_rules['ComplianceResourceTypes'] = rule['Scope']['ComplianceResourceTypes']
-                for key, value in input_parameters_dict.items():
-                    required_tags_config_rules[key] = value
-                input_parameters_dict.clear()
-        
-        return required_tags_config_rules
+            required_tags_config_rules = dict()
+            input_parameters_dict = dict()
+            for rule in all_config_rules:
+                if rule['Source']['SourceIdentifier'] == 'REQUIRED_TAGS':
+                    input_parameters_dict = json.loads(rule['InputParameters'])
+                    required_tags_config_rules['ConfigRuleName'] = rule['ConfigRuleName']
+                    required_tags_config_rules['ComplianceResourceTypes'] = rule['Scope']['ComplianceResourceTypes']
+                    for key, value in input_parameters_dict.items():
+                        required_tags_config_rules[key] = value
+                    input_parameters_dict.clear()
+            
+            return required_tags_config_rules
+
+        except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {}"
+                log.error(errorString.format(error))
 
     #Get REQUIRED_TAGS Config Rule names & ID's
     def get_config_rules_ids_names(self):
