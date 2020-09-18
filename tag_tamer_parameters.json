@@ -1,8 +1,24 @@
 {
     "parameters": {
+        "default_region": "us-east-1",
+        "logging_level": "INFO",
         "selected_regions": [
                 "us-east-1"
         ],
-        "logging_level": "INFO"
+        "ssm_parameter_path": "/tag-tamer/",
+        "ssm_parameter_names": [
+            "cognito-app-client-id",
+            "cognito-app-client-secret-value",
+            "cognito-default-region-value",
+            "cognito-domain-value",
+            "cognito-redirect-url-value",
+            "cognito-user-pool-id-value",
+            "jwt-access-cookie-name",
+            "jwt-cookie-csrf-protect",
+            "jwt-cookie-domain",
+            "jwt-cookie-secure",
+            "jwt-token-location"
+        ],
+        "tagging_statistics": "YES"
     }
 }

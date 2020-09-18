@@ -24,22 +24,37 @@ from set_tag_groups import set_tag_group
 # Import getter/setter module for AWS Service Catalog
 import service_catalog
 from service_catalog import service_catalog
+# Import getter/setter module for AWS SSM Parameter Store
+import ssm_parameter_store
+from ssm_parameter_store import ssm_parameter_store
 # Import flask framework module & classes to build API's
-import flask
-from flask import Flask, request, render_template, jsonify
+import flask, flask_login, flask_wtf
+from flask import Flask, jsonify, make_response, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
+from flask_awscognito import AWSCognitoAuthentication
+from flask_login import login_user, logout_user, current_user, login_required, UserMixin, LoginManager
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
 # Import JSON parser
 import json
 # Import logging module
 import logging
+# Import Regex
+import re
+#import OS module
+import os
+#import epoch time method
+from time import time
 
 # Read in Tag Tamer solution parameters
 tag_tamer_parameters_file = open('tag_tamer_parameters.json', "rt")
 tag_tamer_parameters = json.load(tag_tamer_parameters_file)
 
-
 # logLevel options are DEBUG, INFO, WARNING, ERROR or CRITICAL
-logLevel = tag_tamer_parameters['parameters']['logging_level']
+# Set logLevel in tag_tamer_parameters.json parameters file
+if  re.search("DEBUG|INFO|WARNING|ERROR|CRITICAL", tag_tamer_parameters['parameters']['logging_level'].upper()):
+    logLevel = tag_tamer_parameters['parameters']['logging_level'].upper()
+else:
+    logLevel = 'INFO'
 logging.basicConfig(filename='tag_tamer.log',format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',datefmt='%m/%d/%Y %I:%M:%S %p')
 # Set the base/root logging level for tag_tamer.py & all imported modules
 logging.getLogger().setLevel(logLevel)
@@ -47,17 +62,42 @@ log = logging.getLogger('tag_tamer_main')
 # Raise logging level for WSGI tool kit "werkzeug" that's German for "tool"
 logging.getLogger('werkzeug').setLevel('ERROR')
 
-# Instantiate flask API application
-app = flask.Flask(__name__)
-app.secret_key = b'\xf9\xca\xf7{z\xb18\\\xa2g\xa2\xfb \xc4\xd4\xf8'
-app.config["DEBUG"] = True
-csrf = CSRFProtect(app)
-csrf.init_app(app)
-
 # Get user-specified AWS regions
 selected_regions = tag_tamer_parameters['parameters']['selected_regions']
 region = selected_regions[0]
 log.debug('The selected AWS region is: \"%s\"', region)
+
+# Get AWS Service parameters from AWS SSM Parameter Store
+ssm_ps = ssm_parameter_store(region)
+# Fully qualified list of SSM Parameter names
+ssm_parameter_full_names = ssm_ps.form_parameter_hierarchies(tag_tamer_parameters['parameters']['ssm_parameter_path'], tag_tamer_parameters['parameters']['ssm_parameter_names']) 
+# SSM Parameters names & values
+ssm_parameters = ssm_ps.ssm_get_parameter_details(ssm_parameter_full_names)
+
+
+# Instantiate flask API applications
+app = flask.Flask(__name__)
+app.secret_key = os.urandom(12)
+app.config["DEBUG"] = False
+app.config['AWS_DEFAULT_REGION'] = ssm_parameters['/tag-tamer/cognito-default-region-value']
+app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters['/tag-tamer/cognito-domain-value']
+app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters['/tag-tamer/cognito-user-pool-id-value']
+app.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = ssm_parameters['/tag-tamer/cognito-app-client-id']
+app.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = ssm_parameters['/tag-tamer/cognito-app-client-secret-value']
+app.config['AWS_COGNITO_REDIRECT_URL'] = ssm_parameters['/tag-tamer/cognito-redirect-url-value']
+app.config['JWT_TOKEN_LOCATION'] = ssm_parameters['/tag-tamer/jwt-token-location']
+app.config['JWT_COOKIE_SECURE'] = ssm_parameters['/tag-tamer/jwt-cookie-secure']
+#app.config['JWT_COOKIE_DOMAIN'] = 'localhost:5000'
+app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['/tag-tamer/jwt-access-cookie-name']
+app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['/tag-tamer/jwt-cookie-csrf-protect']
+
+
+aws_auth = AWSCognitoAuthentication(app)
+csrf = CSRFProtect(app)
+csrf.init_app(app)
+jwt = JWTManager(app)
+login_manager = LoginManager()
+
 
 ##Output EC2 inventory as JSON for tobywan@
 @app.route('/ec2-tags', methods=['GET'])
@@ -225,6 +265,7 @@ def apply_tags_to_resources():
     
     form_contents = request.form.to_dict()
     form_contents.pop("resources_to_tag")
+    form_contents.pop("csrf_token")
    
     if request.form.get('resource_type') == "ebs":
         resource_type = 'ec2'
@@ -364,6 +405,7 @@ def set_roles_tags():
     role_name = request.form.get('roles_to_tag')
     form_contents = request.form.to_dict()
     form_contents.pop('roles_to_tag')
+    form_contents.pop('csrf_token')
 
     chosen_tags = list()
     for key, value in form_contents.items():
