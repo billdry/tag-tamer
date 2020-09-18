@@ -106,23 +106,51 @@ def ec2_tags():
     sorted_tagged_inventory = inventory.get_resources_tags()
     return jsonify(sorted_tagged_inventory)
 
-# Get response delivers Tag Tamer home page HTML
-@app.route('/', methods=['GET'])
-def index():
-    return render_template('index.html')  
+# Allow users to sign into Tag Tamer via an AWS Cognito User Pool
+@app.route('/sign-in')
+def sign_in():
+    return redirect(aws_auth.get_sign_in_url())
 
-# Get response delivers Tag Tamer actions page HTML showing user choices as clickable buttons
+# Redirect the user to the Tag Tamer home page after successful AWS Cognito login
+@app.route('/aws_cognito_redirect', methods=['GET'])
+def aws_cognito_redirect():
+    access_token = None
+    access_token = aws_auth.get_access_token(request.args)
+    if access_token:    
+        response = make_response(render_template('redirect.html'))
+        set_access_cookies(response, access_token)
+        return response, 200
+    else:
+        return redirect(url_for('sign_in'))
+
+# Get response delivers Tag Tamer home page
+@app.route('/index.html', methods=['GET'])
+@app.route('/index.htm', methods=['GET'])
+@app.route('/index', methods=['GET'])
+@app.route('/', methods=['GET'])
+@aws_auth.authentication_required
+def index():
+    claims = aws_auth.claims
+    if time() < claims.get('exp'):    
+        return render_template('index.html', user_name=claims.get('username'))
+    else:
+        return redirect('/sign-in')
+
+# Get response delivers Tag Tamer actions page showing user choices as clickable buttons
+@aws_auth.authentication_required
 @app.route('/actions', methods=['GET'])
 def actions():
     return render_template('actions.html')    
 
 # Get response delivers HTML UI to select AWS resource types that Tag Tamer will find
 # Post action initiates tag finding for user selected AWS resource types
+@aws_auth.authentication_required
 @app.route('/find-tags', methods=['POST'])
 def find_tags():
     return render_template('find-tags.html')    
 
 # Pass Get response to found-tags HTML UI
+@aws_auth.authentication_required
 @app.route('/found-tags', methods=['POST'])
 def found_tags():
     if request.form.get('resource_type') == "ebs":
@@ -140,11 +168,13 @@ def found_tags():
 
 # Delivers HTML UI to select AWS resource types to manage Tag Groups for
 @app.route('/type-to-tag-group', methods=['POST'])
+@aws_auth.authentication_required
 def type_to_tag_group():
     return render_template('type-to-tag-group.html') 
 
 # Post response to get tag groups attributes UI
 @app.route('/get-tag-group-names', methods=['POST'])
+@aws_auth.authentication_required
 def get_tag_group_names():
     all_tag_groups = get_tag_groups(region)
     tag_group_names = all_tag_groups.get_tag_group_names()
@@ -160,6 +190,7 @@ def get_tag_group_names():
 
 # Post method to display edit UI for chosen tag group
 @app.route('/edit-tag-group', methods=['POST'])
+@aws_auth.authentication_required
 def edit_tag_group():
     if request.form.get('resource_type') == "ebs":
         resource_type = 'ec2'
@@ -187,6 +218,7 @@ def edit_tag_group():
 
 # Post method to add or update a tag group
 @app.route('/add-update-tag-group', methods=['POST'])
+@aws_auth.authentication_required
 def add_update_tag_group():
     new_tag_group_name = request.form.get('new_tag_group_name')
     if new_tag_group_name:
@@ -232,11 +264,13 @@ def add_update_tag_group():
     return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
 
 # Delivers HTML UI to select AWS resource type to tag using Tag Groups
+@aws_auth.authentication_required
 @app.route('/select-resource-type', methods=['POST'])
 def select_resource_type():
     return render_template('select-resource-type.html') 
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
+@aws_auth.authentication_required
 @app.route('/tag_resources', methods=['POST'])
 def tag_resources():
     inbound_resource_type = request.form.get('resource_type')
@@ -258,6 +292,7 @@ def tag_resources():
     return render_template('tag-resources.html', resource_type=inbound_resource_type, resource_inventory=chosen_resource_ids, tag_groups_all_info=tag_groups_all_info) 
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
+@aws_auth.authentication_required
 @app.route('/apply-tags-to-resources', methods=['POST'])
 def apply_tags_to_resources():
     resources_to_tag = []
@@ -296,6 +331,7 @@ def apply_tags_to_resources():
     return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
 
 # Retrieves AWS Service Catalog products & Tag Groups
+@aws_auth.authentication_required
 @app.route('/get-service-catalog', methods=['GET'])
 def get_service_catalog():
 
@@ -314,6 +350,7 @@ def get_service_catalog():
     return render_template('update-service-catalog.html', tag_group_inventory=tag_group_inventory, sc_product_ids_names=sc_product_ids_names)
 
 # Updates AWS Service Catalog product templates with TagOptions using Tag Groups
+@aws_auth.authentication_required
 @app.route('/set-service-catalog', methods=['POST'])
 def set_service_catalog():
     selected_tag_groups = list()
@@ -341,6 +378,7 @@ def set_service_catalog():
     return render_template('updated-service-catalog.html', sc_product_ids_names=sc_product_ids_names, updated_product_temp_tagoptions=updated_product_temp_tagoptions)
 
 # Retrieves AWS Config Rules & Tag Groups
+@aws_auth.authentication_required
 @app.route('/find-config-rules', methods=['GET'])
 def find_config_rules():
 
@@ -357,6 +395,7 @@ def find_config_rules():
     return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
 
 # Updates AWS Config's required-tags rule using Tag Groups
+@aws_auth.authentication_required
 @app.route('/update-config-rules', methods=['POST'])
 def set_config_rules():
     selected_tag_groups = list()
@@ -387,6 +426,7 @@ def set_config_rules():
     return render_template('updated-config-rules.html', updated_config_rule=updated_config_rule)  
 
 # Retrieves AWS IAM Roles & Tag Groups
+@aws_auth.authentication_required
 @app.route('/select-roles-tags', methods=['GET'])
 def select_roles_tags():
     tag_group_inventory = get_tag_groups(region)
@@ -400,6 +440,7 @@ def select_roles_tags():
     return render_template('tag-roles.html', roles_inventory=roles_inventory, tag_groups_all_info=tag_groups_all_info)
 
 # Assigns selected tags to roles for tagging newly created AWS resources
+@aws_auth.authentication_required
 @app.route('/set-roles-tags', methods=['POST'])
 def set_roles_tags():
     role_name = request.form.get('roles_to_tag')
@@ -420,4 +461,5 @@ def set_roles_tags():
 
     return render_template('actions.html')
 
-app.run()          
+if __name__ == '__main__':
+    app.run()          
