@@ -33,7 +33,7 @@ from flask import Flask, jsonify, make_response, redirect, render_template, requ
 from flask_wtf.csrf import CSRFProtect
 from flask_awscognito import AWSCognitoAuthentication
 from flask_login import login_user, logout_user, current_user, login_required, UserMixin, LoginManager
-from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
+#from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
 # Import JSON parser
 import json
 # Import logging module
@@ -74,11 +74,12 @@ ssm_parameter_full_names = ssm_ps.form_parameter_hierarchies(tag_tamer_parameter
 # SSM Parameters names & values
 ssm_parameters = ssm_ps.ssm_get_parameter_details(ssm_parameter_full_names)
 
+#print(ssm_parameters)
 
 # Instantiate flask API applications
-app = flask.Flask(__name__)
+app = Flask(__name__)
 app.secret_key = os.urandom(12)
-app.config["DEBUG"] = False
+app.config["DEBUG"] = True
 app.config['AWS_DEFAULT_REGION'] = ssm_parameters['/tag-tamer/cognito-default-region-value']
 app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters['/tag-tamer/cognito-domain-value']
 app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters['/tag-tamer/cognito-user-pool-id-value']
@@ -95,7 +96,7 @@ app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['/tag-tamer/jwt-cookie-cs
 aws_auth = AWSCognitoAuthentication(app)
 csrf = CSRFProtect(app)
 csrf.init_app(app)
-jwt = JWTManager(app)
+#jwt = JWTManager(app)
 login_manager = LoginManager()
 
 
@@ -118,7 +119,8 @@ def aws_cognito_redirect():
     access_token = aws_auth.get_access_token(request.args)
     if access_token:    
         response = make_response(render_template('redirect.html'))
-        set_access_cookies(response, access_token)
+        #set_access_cookies(response, access_token)
+        response.set_cookie('access_token', value=access_token)
         return response, 200
     else:
         return redirect(url_for('sign_in'))

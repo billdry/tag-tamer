@@ -15,7 +15,6 @@
             "cognito-user-pool-id-value",
             "jwt-access-cookie-name",
             "jwt-cookie-csrf-protect",
-            "jwt-cookie-domain",
             "jwt-cookie-secure",
             "jwt-token-location"
         ],

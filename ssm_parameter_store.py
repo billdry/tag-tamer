@@ -34,9 +34,13 @@ class ssm_parameter_store:
                 Names=parameter_names,
                 WithDecryption=True
             )
+            #print("the parameter response is: ", get_parameter_response)
             parameter_dictionary = dict()
             for parameter in get_parameter_response['Parameters']:
                 parameter_dictionary[parameter['Name']] = parameter['Value']
+            
+            #print(parameter_dictionary)
+            
             return parameter_dictionary
 
         except botocore.exceptions.ClientError as error:
