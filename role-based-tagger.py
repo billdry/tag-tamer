@@ -15,7 +15,7 @@ import base64
 
 def lambda_handler(event, context):
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('roles')
+    table = dynamodb.Table('tag_tamer_roles')
     
     cw_data = event['awslogs']['data']
     compressed_cw_payload = base64.b64decode(cw_data)

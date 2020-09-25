@@ -20,7 +20,7 @@ class set_tag_group:
         self.region = region
         self.tag_groups = {}
         self.dynamodb = boto3.resource('dynamodb', region_name=self.region)
-        self.table = self.dynamodb.Table('tag_groups')
+        self.table = self.dynamodb.Table('tag_tamer_tag_groups')
     
     #Setter to instantiate a new Tag Group adding its tag key & range of tag values
     def create_tag_group(self, tag_group_name, tag_group_key_name, tag_group_value_options):
