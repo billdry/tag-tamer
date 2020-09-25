@@ -17,10 +17,19 @@
 <div class="container">
   <div class="row">
     <div class="col-2">
+      <br>
+      <h4>Logged in as:</h4>
+      <p class="font-italic" style="font-size:200%;color:MediumSeaGreen;">{{ user_name }}</p>
+      <br>
       <form method="get" action="{{ url_for('actions') }}" target="home_iframe">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <button type="submit" class="btn btn-primary btn-lg">Home</button>
       </form>
+      <br>
+      <form method="get" action="{{ url_for('logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="btn btn-primary btn-lg">Log Out</button>
+      </form>     
     </div>
     <div class="col-10">
     <div class="embed-responsive embed-responsive-16by9">

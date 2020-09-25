@@ -27,13 +27,16 @@ from service_catalog import service_catalog
 # Import getter/setter module for AWS SSM Parameter Store
 import ssm_parameter_store
 from ssm_parameter_store import ssm_parameter_store
+# Import user class to track user logins/logouts
+import user_model
+from user_model import user
 # Import flask framework module & classes to build API's
 import flask, flask_login, flask_wtf
 from flask import Flask, jsonify, make_response, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
 from flask_awscognito import AWSCognitoAuthentication
 from flask_login import login_user, logout_user, current_user, login_required, UserMixin, LoginManager
-#from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
 # Import JSON parser
 import json
 # Import logging module
@@ -96,9 +99,15 @@ app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['/tag-tamer/jwt-cookie-cs
 aws_auth = AWSCognitoAuthentication(app)
 csrf = CSRFProtect(app)
 csrf.init_app(app)
-#jwt = JWTManager(app)
+jwt = JWTManager(app)
 login_manager = LoginManager()
+login_manager.login_view = 'sign_in'
+login_manager.init_app(app)
 
+@login_manager.user_loader
+def load_user(username):
+    this_user = user(username)
+    return this_user
 
 ##Output EC2 inventory as JSON for tobywan@
 @app.route('/ec2-tags', methods=['GET'])
@@ -108,6 +117,7 @@ def ec2_tags():
     return jsonify(sorted_tagged_inventory)
 
 # Allow users to sign into Tag Tamer via an AWS Cognito User Pool
+@app.route('/log-in')
 @app.route('/sign-in')
 def sign_in():
     return redirect(aws_auth.get_sign_in_url())
@@ -133,7 +143,9 @@ def aws_cognito_redirect():
 @aws_auth.authentication_required
 def index():
     claims = aws_auth.claims
-    if time() < claims.get('exp'):    
+    if time() < claims.get('exp'):
+        this_user = user(claims.get('username'))
+        login_user(this_user)  
         return render_template('index.html', user_name=claims.get('username'))
     else:
         return redirect('/sign-in')
@@ -462,6 +474,14 @@ def set_roles_tags():
     role_to_tag.set_role_tags(role_name, chosen_tags)
 
     return render_template('actions.html')
+
+@app.route('/logout', methods=['GET'])
+@aws_auth.authentication_required
+@login_required
+def logout():
+    response = make_response(render_template('logout.html'))
+    unset_jwt_cookies(response)
+    return response, 200
 
 if __name__ == '__main__':
     app.run()          
