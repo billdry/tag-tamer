@@ -32,6 +32,7 @@ from ssm_parameter_store import ssm_parameter_store
 import flask, flask_login, flask_wtf
 from flask import Flask, jsonify, make_response, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
+# Use only flask_awscognito version 1.2.6 or higher from https://github.com/billdry/Flask-AWSCognito/
 from flask_awscognito import AWSCognitoAuthentication
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
 # Import JSON parser
