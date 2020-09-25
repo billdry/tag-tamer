@@ -1,6 +1,6 @@
 How to install the Tag Tamer solution
 
-Version - 1
+Version - 2
 
 Author: Bill Dry - bdry@amazon.com - +1-919-345-7347
 
@@ -22,7 +22,7 @@ Installation option #1: Web App deployed in a private subnet
 
 Step 1 - Download the AWS CloudFormation template at the following link. It specifies the Tag Tamer solution infrastructure.
 
-https://github.com/billdry/tag-tamer/blob/master/installation%20procedures/tagtamer_v2_private.yaml
+https://github.com/billdry/tag-tamer/blob/master/installation%20procedures/tagtamer_private.yaml
 
 Step 2 - Deploy the CloudFormation Template downloaded in step 1 into your AWS account. You will need an EC2 Key Pair, VPC, Private Subnet and a IAM Role with CloudFormation deployment permissions for DynamoDB, EC2 & IAM
 
@@ -32,7 +32,7 @@ Installation option #2: Web App deployed in a private subnet behind ALB in a pub
 
 Step 1 - Download the AWS CloudFormation template at the following link. It specifies the Tag Tamer solution infrastructure.
 
-https://github.com/billdry/tag-tamer/blob/master/installation%20procedures/tagtamer_v2_public.yaml
+https://github.com/billdry/tag-tamer/blob/master/installation%20procedures/tagtamer_public.yaml
 
 Step 2 - Deploy the CloudFormation Template downloaded in step 1 into your AWS account. You will need an EC2 Key Pair, VPC, Private/Public Subnets, Certificate and a IAM Role with CloudFormation deployment permissions for DynamoDB, EC2 & IAM
 

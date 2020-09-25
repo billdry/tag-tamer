@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: AWS Cloudformation template for TagTamer solution components - version - RC7
+Description: AWS Cloudformation template for TagTamer solution components - version - RC8
 Metadata: 
   AWS::CloudFormation::Interface: 
     ParameterGroups: 
@@ -50,7 +50,7 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: '5'
         WriteCapacityUnits: '5'
-      TableName: tag_groups
+      TableName: tag_tamer_tag_groups
   TagTamerRolesTable:
     Type: 'AWS::DynamoDB::Table'
     Properties:
@@ -63,7 +63,7 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: '5'
         WriteCapacityUnits: '5'
-      TableName: roles
+      TableName: tag_tamer_roles
   TagTamerRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -168,7 +168,6 @@ Resources:
             Resource: '*'
           - Sid: serviceCatalog
             Action:
-              - 'servicecatalog:CreateProduct'
               - 'servicecatalog:CreateTagOption'
               - 'servicecatalog:DescribePortfolio'
               - 'servicecatalog:DescribeProduct'
@@ -188,8 +187,8 @@ Resources:
               - 'dynamodb:Scan'
               - 'dynamodb:UpdateItem'
             Resource:
-              - 'arn:aws:dynamodb:*:*:table/roles'
-              - 'arn:aws:dynamodb:*:*:table/tag_groups'
+              - 'arn:aws:dynamodb:*:*:table/tag_tamer_roles'
+              - 'arn:aws:dynamodb:*:*:table/tag_tamer_tag_groups'
       Roles:
         - TagTamerRole
     DependsOn:
