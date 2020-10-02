@@ -4,11 +4,13 @@
 # Getter & setter for resources & tags.
 
 # Import AWS module for python
-import boto3
+import boto3, botocore
 # Import Collections module to manipulate dictionaries
 import collections
 # Import Python's regex module to filter Boto3's API responses 
 import re
+# Import Collections to use ordered dictionaries for storage
+from collections import OrderedDict
 
 # Define resources_tags class to get/set resources & their assigned tags
 class resources_tags:
@@ -22,14 +24,40 @@ class resources_tags:
     #Returns a sorted list of all resources for the resource type specified  
     def get_resources(self):
         selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+        client = boto3.client(self.resource_type, region_name=self.region)
         sorted_resource_inventory = list()
+        named_resource_inventory = dict()
 
         if self.unit == 'instances':
             try:
+                named_instances = client.describe_instances(
+                    Filters=[
+                        {
+                            'Name': 'tag-key',
+                            'Values': [
+                                'name',
+                                'Name'
+                            ]
+                        }
+                    ]
+                )
                 for resource in selected_resource_type.instances.all():
-                    sorted_resource_inventory.append(resource.id)
-            except:
-               sorted_resource_inventory.append("No Resources Found")
+                    named_resource_inventory[resource.id] = 'Unnamed'
+                for reservation in named_instances['Reservations']:
+                    for instance in reservation['Instances']:
+                        for tag in instance['Tags']:
+                            if(tag['Key'].lower() == 'name'):
+                                named_resource_inventory[instance['InstanceId']] = tag['Value']
+                ordered_inventory = OrderedDict()
+                ordered_inventory = sorted(named_resource_inventory.items(), key=lambda item: item[1])
+                return ordered_inventory
+                
+            except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {}"
+                errorString.format(error)
+                print(errorString)
+                sorted_resource_inventory.append("No Resources Found")
+
         elif self.unit == 'volumes':
             try:
                 for resource in selected_resource_type.volumes.all():
@@ -46,8 +74,8 @@ class resources_tags:
         #Remove duplicates & sort
         sorted_resource_inventory = list(set(sorted_resource_inventory))
         sorted_resource_inventory.sort(key=str.lower)
-
         return sorted_resource_inventory
+        
 
     #Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
     def get_resources_tags(self):

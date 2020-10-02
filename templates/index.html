@@ -14,9 +14,12 @@
     <h1>Welcome to Tag Tamer</h1>
     <p>Use Tag Tamer to manage tags on your existing AWS resources & manage tag choices for new AWS resources that you & your team create in the future</p>
     </div>
-<div class="container">
+
+<div class="container-fluid">
   <div class="row">
+    <div class="col-1"></div>
     <div class="col-2">
+      <br>
       <br>
       <h4>Logged in as:</h4>
       <p class="font-italic" style="font-size:200%;color:MediumSeaGreen;">{{ user_name }}</p>
@@ -31,10 +34,10 @@
         <button type="submit" class="btn btn-primary btn-lg">Log Out</button>
       </form>     
     </div>
-    <div class="col-10">
-    <div class="embed-responsive embed-responsive-16by9">
-      <iframe class="embed-responsive-item" src="{{ url_for('actions') }}" style="border:none;height:100%;width:100%" name="home_iframe"></iframe> 
-    </div>
+    <div class="col-9">
+        <div class="embed-responsive embed-responsive-16by9">
+          <iframe class="embed-responsive-item" src="{{ url_for('actions') }}" style="border:none;height:100%;width:100%" name="home_iframe"></iframe> 
+        </div>
     </div>
   </div>
 </div>

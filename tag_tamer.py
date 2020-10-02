@@ -5,7 +5,7 @@
 
 # Import Collections module to manipulate dictionaries
 import collections
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 # Import getter/setter module for AWS Config
 import config
 from config import config
@@ -135,6 +135,11 @@ def index():
         return render_template('index.html', user_name=claims.get('username'))
     else:
         return redirect('/sign-in')
+
+# Get response delivers Tag Tamer actions page showing user choices as clickable buttons
+@app.route('/tag-filter', methods=['POST'])
+def tag_filter():
+    return render_template('tag-search-prototype.html') 
 
 # Get response delivers Tag Tamer actions page showing user choices as clickable buttons
 @app.route('/actions', methods=['GET'])
@@ -284,12 +289,13 @@ def tag_resources():
         resource_type = 's3'
         unit = 'buckets'
     chosen_resource_inventory = resources_tags(resource_type, unit, region)
-    chosen_resource_ids = chosen_resource_inventory.get_resources()
+    chosen_resources = OrderedDict()
+    chosen_resources = chosen_resource_inventory.get_resources()
     
     tag_group_inventory = get_tag_groups(region)
     tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values()
 
-    return render_template('tag-resources.html', resource_type=inbound_resource_type, resource_inventory=chosen_resource_ids, tag_groups_all_info=tag_groups_all_info) 
+    return render_template('tag-resources.html', resource_type=inbound_resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
 @app.route('/apply-tags-to-resources', methods=['POST'])
@@ -468,5 +474,5 @@ def logout():
     unset_jwt_cookies(response)
     return response, 200
 
-if __name__ == '__main__':
-    app.run()          
+#if __name__ == '__main__':
+#    app.run()          

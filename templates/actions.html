@@ -10,8 +10,8 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
   </head>    
   <body>
-    <h3>Find, organize and update tags</h3>
-<div class="container">
+      <div class="container">
+        <h3>Find, organize and update tags</h3>
     <form method="post" action="{{ url_for('find_tags') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <button type="submit" class="btn btn-primary btn-lg">Click here to see your existing AWS resources & their tags</button>
@@ -32,8 +32,15 @@
     </form>
 </div>
 <br>
-<h3>Enable and enforce tagging</h3>
 <div class="container">
+    <form method="post" action="{{ url_for('tag_filter') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="btn btn-primary btn-lg">Click to see the tag filter prototype</button>
+    </form>
+</div>
+<br>
+<div class="container">
+    <h3>Enable and enforce tagging</h3>
     <form method="get" action="{{ url_for('find_config_rules') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <button type="submit" class="btn btn-primary btn-lg">Click here to assign your Tag Groups to AWS Config rules</button>

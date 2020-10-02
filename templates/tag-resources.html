@@ -10,10 +10,10 @@
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
     </head>    
     <body>
-            <div class="container">
+            <div class="container-fluid">
                 <div class="row">
-                <div class="col-6">
-                    <h3>Select your AWS resources</h3>
+                <div class="col-7">
+                    <h3 style="text-align:center;">Select your AWS resources</h3>
                     <table class="table table-borderless">
                         <tbody>
                             <tr>
@@ -26,8 +26,8 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>          
                     <div class="form-group">
                         <select multiple class="custom-select" id="FormControlSelect1" name="resources_to_tag" size="10">
-                        {% for resource_id in resource_inventory %}
-                            <option  value="{{ resource_id }}">{{ resource_id }}</option>
+                        {% for id_name in resource_inventory %}
+                            <option  value="{{ id_name[0] }}">{{ id_name[1] }}  --  {{ id_name[0] }}</option>
                         {% endfor %}
                         </select>
                     </div>
@@ -35,8 +35,8 @@
                     <br>
                     <br>
                 </div>
-                <div class="col-6">
-                    <h3>Select your tags to apply</h3>
+                <div class="col-5">
+                    <h3 style="text-align:center;">Select your tags to apply</h3>
                     <table class="table table-borderless">    
                         <tbody>
                             <tr>
