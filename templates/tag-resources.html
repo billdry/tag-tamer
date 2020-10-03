@@ -12,54 +12,57 @@
     <body>
             <div class="container-fluid">
                 <div class="row">
-                <div class="col-7">
-                    <h3 style="text-align:center;">Select your AWS resources</h3>
-                    <table class="table table-borderless">
-                        <tbody>
-                            <tr>
-                                <td>Hold down the Control key to select multiple AWS resources to tag from the list, below.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="col-7">
+                        <h3 style="text-align:center;">Select your AWS resources</h3>
+                        <table class="table table-borderless">
+                            <tbody>
+                                <tr>
+                                    <td>Hold down the Control key to select multiple AWS resources to tag from the list, below.</td>
+                                </tr>
+                                <tr>
+                                    <td>Resource name -- Resource ID</td>
+                                </tr>
+                            </tbody>
+                        </table>
 
-        <form method="post" action="{{ url_for('apply_tags_to_resources') }}">  
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>          
-                    <div class="form-group">
-                        <select multiple class="custom-select" id="FormControlSelect1" name="resources_to_tag" size="10">
-                        {% for id_name in resource_inventory %}
-                            <option  value="{{ id_name[0] }}">{{ id_name[1] }}  --  {{ id_name[0] }}</option>
-                        {% endfor %}
-                        </select>
+                        <form method="post" action="{{ url_for('apply_tags_to_resources') }}">  
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>          
+                                    <div class="form-group">
+                                        <select multiple class="custom-select" id="FormControlSelect1" name="resources_to_tag" size="10">
+                                        {% for id_name in resource_inventory %}
+                                            <option  value="{{ id_name[0] }}">{{ id_name[1] }}  --  {{ id_name[0] }}</option>
+                                        {% endfor %}
+                                        </select>
+                                    </div>
+                            <p>Once you select your resources & tags, click the "Tag Selected Resources" button, below.</p>
+                            <br>
+                            <br>
                     </div>
-                    <p>Once you select your resources & tags, click the "Tag Selected Resources" button, below.</p>
-                    <br>
-                    <br>
-                </div>
-                <div class="col-5">
-                    <h3 style="text-align:center;">Select your tags to apply</h3>
-                    <table class="table table-borderless">    
-                        <tbody>
-                            <tr>
-                                <td>Choose a tag key:value pair from every Tag Group dropdown, below, you want to apply as a tag to your selected resource(s)</td>
-                            </tr>
-                        </tbody>
-                    </table>              
-                    {% for this_tag_group_info in tag_groups_all_info %}
-                    <div class="form-group">
-                        <select class="custom-select" id="FormControlSelect2" name="{{ this_tag_group_info[1] }}">
-                            <option  value="">Tag Group --> {{ this_tag_group_info[0] }}</option>
-                        {% for this_tag_group_value_option in this_tag_group_info[2] %}
-                            <option  value="{{ this_tag_group_value_option }}">{{ this_tag_group_info[1] }} : {{ this_tag_group_value_option }}</option>
+                    <div class="col-5">
+                        <h3 style="text-align:center;">Select your tags to apply</h3>
+                        <table class="table table-borderless">    
+                            <tbody>
+                                <tr>
+                                    <td>Choose a tag key:value pair from every Tag Group dropdown, below, you want to apply as a tag to your selected resource(s)</td>
+                                </tr>
+                            </tbody>
+                        </table>              
+                        {% for this_tag_group_info in tag_groups_all_info %}
+                        <div class="form-group">
+                            <select class="custom-select" id="FormControlSelect2" name="{{ this_tag_group_info[1] }}">
+                                <option  value="">Tag Group --> {{ this_tag_group_info[0] }}</option>
+                            {% for this_tag_group_value_option in this_tag_group_info[2] %}
+                                <option  value="{{ this_tag_group_value_option }}">{{ this_tag_group_info[1] }} : {{ this_tag_group_value_option }}</option>
+                            {% endfor %}
+                            </select>
+                        </div>
                         {% endfor %}
-                        </select>
                     </div>
-                    {% endfor %}
+                            <input type="hidden" name="resource_type" value="{{ resource_type }}">
+                            <button type="submit" class="btn btn-primary btn-lg">Tag Selected Resources</button>
+                        </form>
                 </div>
-                </div>
-                <input type="hidden" name="resource_type" value="{{ resource_type }}">
-                <button type="submit" class="btn btn-primary btn-lg">Tag Selected Resources</button>
-            </div>
-        </form>
+            </div>  
         <br>
         <span style="text-align:center;">
             <form method="get" action="{{ url_for('actions') }}">
