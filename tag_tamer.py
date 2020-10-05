@@ -3,6 +3,8 @@
 # copyright 2020 Bill Dry
 # Tag Tamer Admin UI
 
+# Import administrative functions
+from admin import date_time_now
 # Import Collections module to manipulate dictionaries
 import collections
 from collections import defaultdict, OrderedDict
@@ -93,8 +95,6 @@ app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['/tag-tamer/jwt-access-coo
 app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['/tag-tamer/jwt-cookie-csrf-protect']
 
 aws_auth = AWSCognitoAuthentication(app)
-csrf = CSRFProtect(app)
-csrf.init_app(app)
 jwt = JWTManager(app)
 
 ##Output EC2 inventory as JSON for tobywan@
@@ -131,6 +131,7 @@ def aws_cognito_redirect():
 def index():
     claims = aws_auth.claims
     if time() < claims.get('exp'):
+        log.info("User \"{}\" signed in on {}".format(claims.get('username'), date_time_now()))
         return render_template('index.html', user_name=claims.get('username'))
     else:
         return redirect('/sign-in')
@@ -222,15 +223,17 @@ def edit_tag_group():
 @app.route('/add-update-tag-group', methods=['POST'])
 @aws_auth.authentication_required
 def add_update_tag_group():
-    new_tag_group_name = request.form.get('new_tag_group_name')
-    if new_tag_group_name:
+    #new_tag_group_name = request.form.get('new_tag_group_name')
+    if request.form.get('new_tag_group_name') and request.form.get('new_tag_group_key_name'):
         tag_group_name = request.form.get('new_tag_group_name')
         tag_group_key_name = request.form.get('new_tag_group_key_name')
         tag_group_action = "create"
-    else:
+    elif request.form.get('selected_tag_group_name') and request.form.get('selected_tag_group_key_name'):
         tag_group_name = request.form.get('selected_tag_group_name')
         tag_group_key_name = request.form.get('selected_tag_group_key_name')
         tag_group_action = "update"
+    else:
+        return render_template('type-to-tag-group.html')
 
     tag_group_value_options = []
     form_contents = request.form.to_dict()
@@ -310,7 +313,7 @@ def tag_resources():
         return render_template('tag-resources.html', resource_type=inbound_resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
     else:
         return redirect(url_for('select_resource_type'))
-        
+
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
 @app.route('/apply-tags-to-resources', methods=['POST'])
 @aws_auth.authentication_required
@@ -321,7 +324,6 @@ def apply_tags_to_resources():
         
         form_contents = request.form.to_dict()
         form_contents.pop("resources_to_tag")
-        form_contents.pop("csrf_token")
     
         if request.form.get('resource_type') == "ebs":
             resource_type = 'ec2'
@@ -473,7 +475,6 @@ def set_roles_tags():
         role_name = request.form.get('roles_to_tag')
         form_contents = request.form.to_dict()
         form_contents.pop('roles_to_tag')
-        form_contents.pop('csrf_token')
 
         chosen_tags = list()
         for key, value in form_contents.items():
@@ -493,6 +494,8 @@ def set_roles_tags():
 @app.route('/logout', methods=['GET'])
 @aws_auth.authentication_required
 def logout():
+    claims = aws_auth.claims
+    log.info("User \"{}\" signed out on {}".format(claims.get('username'), date_time_now()))
     response = make_response(render_template('logout.html'))
     unset_jwt_cookies(response)
     return response, 200
