@@ -37,7 +37,6 @@
     <br />
     <div class="container">
       <form method="get" action="{{ url_for('select_resource_type') }}">
-        <input type="hidden" name="next_route" value="" />
         <button type="submit" class="btn btn-primary btn-lg">
           Tag your existing AWS resources using your Tag Groups
         </button>
@@ -46,7 +45,6 @@
     <br />
     <div class="container">
       <form method="get" action="{{ url_for('tag_filter') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <button type="submit" class="btn btn-primary btn-lg">
           Click to see the tag filter prototype
         </button>

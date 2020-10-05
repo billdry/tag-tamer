@@ -22,8 +22,8 @@
     <h3>Please select a resource type to tag</h3>
     <br />
     <div class="container">
-      <form method="post" action="{{ url_for({{ destination_route }}) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <form method="post" action="{{ url_for('tag_resources') }}">
+        <input type="hidden" name="" value="" />
         <div class="form-check">
           <input
             class="form-check-input"
@@ -65,7 +65,6 @@
     <br />
     <div class="container">
       <form method="get" action="{{ url_for('actions') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <button type="submit" class="btn btn-primary btn-lg">Home</button>
         <button type="submit" class="btn btn-outline-primary btn-lg">
           Cancel

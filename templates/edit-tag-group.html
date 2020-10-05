@@ -11,7 +11,7 @@
     </head>
     <body>
         <form method="post" action="{{ url_for('add_update_tag_group') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="" value=""/>
         {% if selected_tag_group_attributes %}
             {% set selected_tag_group_key_name = selected_tag_group_attributes["tag_group_key"] %}
             <span style="font-size:200%;">This Tag Group's Name: </span><span style="font-size:200%;color:MediumSeaGreen;">"{{ selected_tag_group_name }}"</span>
@@ -86,7 +86,6 @@
                 <br>
                 <div class="container">
                     <form method="get" action="{{ url_for('actions') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit" class="btn btn-primary btn-lg">Home</button>
                         <button type="submit" class="btn btn-outline-primary btn-lg">Cancel</button>
                     </form>
