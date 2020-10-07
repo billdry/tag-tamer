@@ -171,7 +171,59 @@ class resources_tags:
 
         return sorted_tagged_resource_inventory
 
-    #Getter method retrieves the value of every tag for a supplied resource type
+    #Getter method retrieves every tag:key for a supplied resource type
+    def get_tag_keys(self):
+
+        selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+        sorted_tag_keys_inventory = list()
+
+        if self.unit == 'instances':
+            try:
+                for item in selected_resource_type.instances.all():
+                    try:
+                        for tag in item.tags:
+                            if not re.search("^aws:", tag["Key"]):
+                                sorted_tag_keys_inventory.append(tag["Value"])
+                    except:
+                        sorted_tag_keys_inventory.append("No Tags Found")
+            except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {} {}"
+                log.error(errorString.format(self.unit, error))
+                sorted_tag_keys_inventory.append("No Tags Found")
+        elif self.unit == 'volumes':
+            try:
+                for item in selected_resource_type.volumes.all():
+                    try:
+                        for tag in item.tags:
+                            if not re.search("^aws:", tag["Key"]):
+                                sorted_tag_keys_inventory.append(tag["Value"])
+                    except:
+                        sorted_tag_keys_inventory.append("No Tags Found")
+            except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {} {}"
+                log.error(errorString.format(self.unit, error))
+                sorted_tag_keys_inventory.append("No Tags Found")
+        elif self.unit == 'buckets':
+            try:
+                for item in selected_resource_type.buckets.all():
+                    try:
+                        for tag in selected_resource_type.BucketTagging(item.name).tag_set:
+                            if not re.search("^aws:", tag["Key"]):
+                                sorted_tag_keys_inventory.append(tag["Value"])
+                    except:
+                        sorted_tag_keys_inventory.append("No Tags Found")
+            except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {} {}"
+                log.error(errorString.format(self.unit, error))
+                sorted_tag_keys_inventory.append("No Tags Found")
+
+        #Remove duplicate tags & sort
+        sorted_tag_keys_inventory = list(set(sorted_tag_keys_inventory))
+        sorted_tag_keys_inventory.sort(key=str.lower)
+
+        return sorted_tag_keys_inventory
+
+    #Getter method retrieves every tag:value for a supplied resource type
     def get_tag_values(self):
 
         selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
@@ -186,8 +238,10 @@ class resources_tags:
                                 sorted_tag_values_inventory.append(tag["Value"])
                     except:
                         sorted_tag_values_inventory.append("No Tags Found")
-            except:
-               sorted_tag_values_inventory.append("No Tags Found")
+            except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {} {}"
+                log.error(errorString.format(self.unit, error))
+                sorted_tag_values_inventory.append("No Tags Found")
         elif self.unit == 'volumes':
             try:
                 for item in selected_resource_type.volumes.all():
@@ -197,7 +251,9 @@ class resources_tags:
                                 sorted_tag_values_inventory.append(tag["Value"])
                     except:
                         sorted_tag_values_inventory.append("No Tags Found")
-            except:
+            except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {} {}"
+                log.error(errorString.format(self.unit, error))
                 sorted_tag_values_inventory.append("No Tags Found")
         elif self.unit == 'buckets':
             try:
@@ -208,7 +264,9 @@ class resources_tags:
                                 sorted_tag_values_inventory.append(tag["Value"])
                     except:
                         sorted_tag_values_inventory.append("No Tags Found")
-            except:
+            except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {} {}"
+                log.error(errorString.format(self.unit, error))
                 sorted_tag_values_inventory.append("No Tags Found")
 
         #Remove duplicate tags & sort

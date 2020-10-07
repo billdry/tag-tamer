@@ -33,7 +33,6 @@ from ssm_parameter_store import ssm_parameter_store
 # Import flask framework module & classes to build API's
 import flask, flask_wtf
 from flask import Flask, jsonify, make_response, redirect, render_template, request, url_for
-from flask_wtf.csrf import CSRFProtect
 # Use only flask_awscognito version 1.2.6 or higher from https://github.com/billdry/Flask-AWSCognito/
 from flask_awscognito import AWSCognitoAuthentication
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
@@ -84,25 +83,18 @@ app = Flask(__name__)
 app.secret_key = os.urandom(12)
 app.config['AWS_DEFAULT_REGION'] = ssm_parameters['/tag-tamer/cognito-default-region-value']
 app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters['/tag-tamer/cognito-domain-value']
-app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters['/tag-tamer/cognito-user-pool-id-value']
+app.config['AWS_COGNITO_USER_POOL_ID'] = 'us-east-1_mBoIYPcqq' 
+#ssm_parameters['/tag-tamer/cognito-user-pool-id-value']
 app.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = ssm_parameters['/tag-tamer/cognito-app-client-id']
 app.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = ssm_parameters['/tag-tamer/cognito-app-client-secret-value']
 app.config['AWS_COGNITO_REDIRECT_URL'] = ssm_parameters['/tag-tamer/cognito-redirect-url-value']
 app.config['JWT_TOKEN_LOCATION'] = ssm_parameters['/tag-tamer/jwt-token-location']
-app.config['JWT_COOKIE_SECURE'] = ssm_parameters['/tag-tamer/jwt-cookie-secure']
-#app.config['JWT_COOKIE_DOMAIN'] = 'localhost:5000'
 app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['/tag-tamer/jwt-access-cookie-name']
+app.config['JWT_COOKIE_SECURE'] = ssm_parameters['/tag-tamer/jwt-cookie-secure']
 app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['/tag-tamer/jwt-cookie-csrf-protect']
 
 aws_auth = AWSCognitoAuthentication(app)
 jwt = JWTManager(app)
-
-##Output EC2 inventory as JSON for tobywan@
-@app.route('/ec2-tags', methods=['GET'])
-def ec2_tags():
-    inventory = resources_tags("ec2", "instances", region)
-    sorted_tagged_inventory = inventory.get_resources_tags()
-    return jsonify(sorted_tagged_inventory)
 
 # Allow users to sign into Tag Tamer via an AWS Cognito User Pool
 @app.route('/log-in')
@@ -269,16 +261,22 @@ def add_update_tag_group():
     return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
 
 # Delivers HTML UI to select AWS resource type to tag using Tag Groups
-@app.route('/select-resource-type', methods=['GET'])
+@app.route('/select-resource-type', methods=['POST'])
 @aws_auth.authentication_required
 def select_resource_type():
-    return render_template('select-resource-type.html') 
+    next_route  = request.form.get('next_route')
+    if not next_route:
+        next_route = 'tag_resources'
+    return render_template('select-resource-type.html', destination_route=next_route) 
 
 # Let user search existing tags then tag matching, existing resources 
-@app.route('/tag-filter', methods=['GET'])
+@app.route('/tag-filter', methods=['POST'])
 @aws_auth.authentication_required
 def tag_filter():
-    return render_template('search-tag-resources-container.html') 
+    if request.form.get('resource_type'):
+        return render_template('search-tag-resources-container.html', resource_type=request.form.get('resource_type')) 
+    else:
+        return render_template('select-resource-type.html', destination_route='tag_filter')
 
 # Enter existing tag keys & values to search 
 @app.route('/tag-based-search', methods=['GET'])
