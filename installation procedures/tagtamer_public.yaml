@@ -8,12 +8,17 @@ Metadata:
           default: "Amazon EC2 Configuration"
         Parameters: 
           - KeyName
+          - AMIID
       - Label:
           default: "ALB Configuration"
         Parameters: 
           - Certificate
           - CIDRIPRange
-
+      - Label:
+          default: "Cognito configuration for Authentication"
+        Parameters: 
+          - Email
+          - TagTamerUserPoolName
 
 Parameters:
   KeyName:
@@ -21,6 +26,10 @@ Parameters:
     Type: 'AWS::EC2::KeyPair::KeyName'
     ConstraintDescription: must be the name of an existing EC2 KeyPair.
     Default: yourkeyname
+  AMIID:
+    Description: Select Amazon Linux AMI to use for Tag Tamer solution. Recommened to use amzn2-ami-hvm-x86_64-gp2.
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
   CIDRIPRange:
     Description : >-
       The CIDR IP address range that can be used to access ALB.
@@ -36,6 +45,13 @@ Parameters:
       Example: arn:aws:acm-pca:region:account:certificate-authority/12345678-1234-1234-1234-123456789012
     Type: String
     Default: arn:aws:acm:region:accountid:certificate/certificateid
+  Email:
+    Type: String
+    Description: Source email address for sending emails to new users.  Must be an SES validated address.
+  TagTamerUserPoolName:
+    Type: String
+    Default: tag-tamer-user-pool
+    Description: Name of Tag Tamer's Amazon Cognito User Pool used for user authentication
 
 Resources:
 
@@ -179,6 +195,7 @@ Resources:
 
   PublicLoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    DependsOn: AttachGateway
     Properties:
       VpcId:
         Ref: VPC
@@ -247,6 +264,7 @@ Resources:
       Name: TagtamerTargetGroup
       Port: 443
       Protocol: HTTPS
+      HealthCheckPath: /elb-status
       VpcId:
         Ref: VPC
       Targets:
@@ -331,10 +349,19 @@ Resources:
       InstanceType: t2.micro
       SecurityGroupIds:
         - !GetAtt "InstanceSecurityGroup.GroupId"
-      ImageId: ami-02a35aaef5d96cafb
+      ImageId: !Ref AMIID
       KeyName: !Ref KeyName
       SubnetId: !Ref PrivateSubnetA
       IamInstanceProfile: !Ref TagTamerInstanceProfile
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+            cd /var/tmp
+            yum -y install git
+            git clone https://github.com/sbpath/tagtamer.git
+            cd tagtamer/source
+            bash tagtamer-install.sh
       Tags:
         - Key: Name
           Value: Tag Tamer Web App
@@ -384,6 +411,12 @@ Resources:
               - 's3:ReplicateTags'
             Effect: Allow
             Resource: '*'
+          - Sid: ssmparameteraccess
+            Action:
+              - 'ssm:GetParametersByPath'
+              - 'ssm:GetParameters'
+            Effect: Allow
+            Resource: '*'
           - Sid: serviceCatalog
             Action:
               - 'servicecatalog:CreateTagOption'
@@ -411,7 +444,6 @@ Resources:
         - TagTamerRole
     DependsOn:
       - TagTamerRole
-
 
   TagTamerWebACL:
     Type: AWS::WAFv2::WebACL
@@ -449,15 +481,318 @@ Resources:
     DependsOn:
       - TagTamerWebACL
 
+  TagTamerCognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+        - Name: verified_email
+          Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+        InviteMessageTemplate:
+          SMSMessage: 'Your Tag Tamer username is {username} and temporary password is {####}. '
+          EmailMessage: 'Your username is {username} and temporary password is {####}. '
+          EmailSubject: Your temporary Tag Tamer password
+      AliasAttributes:
+      - email
+      - preferred_username
+      AutoVerifiedAttributes:
+      - email
+      DeviceConfiguration:
+        ChallengeRequiredOnNewDevice: false
+        DeviceOnlyRememberedOnUserPrompt: true
+      EmailConfiguration:
+        SourceArn: !Sub 
+          - 'arn:aws:ses:${MyRegion}:${MyAccountID}:identity/${EmailAddress}'
+          - MyRegion: !Ref 'AWS::Region'
+            MyAccountID: !Ref 'AWS::AccountId'
+            EmailAddress: !Ref Email
+        EmailSendingAccount: COGNITO_DEFAULT
+      EmailVerificationMessage: 'Your Tag Tamer verification code is {####}. '
+      EmailVerificationSubject: Your Tag Tamer verification code
+      MfaConfiguration: 'OFF'
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7
+      Schema:
+      - AttributeDataType: String
+        Mutable: false
+        Name: email
+        Required: true
+      UsernameConfiguration:
+        CaseSensitive: false
+      UserPoolName:
+        Ref: TagTamerUserPoolName
+      VerificationMessageTemplate:
+        SmsMessage: 'Your verification code is {####}. '
+        EmailMessage: 'Your Tag Tamer verification code is {####}. '
+        EmailSubject: Your Tag Tamer verification code
+        DefaultEmailOption: CONFIRM_WITH_CODE
+  TagTamerUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain:
+        Ref: EC2Instance
+      UserPoolId:
+        Ref: TagTamerCognitoUserPool
+  TagTamerUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      AllowedOAuthFlows:
+      - code
+      - implicit
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+      - aws.cognito.signin.user.admin
+      - email
+      - openid
+      - phone
+      - profile
+      CallbackURLs: 
+       - !Sub https://${PublicLoadBalancer.DNSName}/aws_cognito_redirect
+      ClientName: tag-tamer-pool-client
+      ExplicitAuthFlows:
+      - ALLOW_ADMIN_USER_PASSWORD_AUTH
+      - ALLOW_CUSTOM_AUTH
+      - ALLOW_REFRESH_TOKEN_AUTH
+      - ALLOW_USER_PASSWORD_AUTH
+      - ALLOW_USER_SRP_AUTH
+      GenerateSecret: true
+      PreventUserExistenceErrors: ENABLED
+      ReadAttributes:
+      - address
+      - birthdate
+      - email
+      - email_verified
+      - family_name
+      - gender
+      - given_name
+      - locale
+      - middle_name
+      - name
+      - nickname
+      - phone_number
+      - phone_number_verified
+      - picture
+      - preferred_username
+      - profile
+      - updated_at
+      - website
+      - zoneinfo
+      SupportedIdentityProviders:
+      - COGNITO
+      UserPoolId:
+        Ref: TagTamerCognitoUserPool
+      WriteAttributes:
+      - address
+      - birthdate
+      - email
+      - family_name
+      - gender
+      - given_name
+      - locale
+      - middle_name
+      - name
+      - nickname
+      - phone_number
+      - picture
+      - preferred_username
+      - profile
+      - updated_at
+      - website
+      - zoneinfo
+
+  TagTamerCognitoDefaultRegion:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/cognito-default-region-value
+      Type: String
+      Value: !Ref "AWS::Region"
+
+  TagTamerCognitoDomain:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/cognito-domain-value
+      Type: String
+      Value: !Sub https://${EC2Instance}.auth.${AWS::Region}.amazoncognito.com
+
+  TagTamerCognitoUserPoolId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/cognito-user-pool-id-value
+      Type: String
+      Value: !Ref TagTamerCognitoUserPool
+
+  TagTamerCognitoAppClientId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/cognito-app-client-id
+      Type: String
+      Value: !Ref TagTamerUserPoolClient
+
+  TagTamerCognitoAppClientSecret:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/cognito-app-client-secret-value
+      Type: String
+      Value: !GetAtt UserPoolClientInputs.appSecret
+    DependsOn: UserPoolClientInputs
+
+  TagTamerCognitoRedirectURL:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/cognito-redirect-url-value
+      Type: String
+      Value: !Sub https://${PublicLoadBalancer.DNSName}/aws_cognito_redirect
+
+  TagTamerJwtTokenLocation:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/jwt-token-location
+      Type: String
+      Value: cookies
+
+  TagTamerJwtCookiesSecure:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/jwt-cookie-secure
+      Type: String
+      Value: False
+
+  TagTamerJwtAccessCookieName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/jwt-access-cookie-name
+      Type: String
+      Value: access_token
+
+  TagTamerJwtCookieCsrfProtect:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/jwt-cookie-csrf-protect
+      Type: String
+      Value: False
+
+  UserPoolClientRole:
+  # Created to execute Lambda which gets userpool app client config values
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: TagTamer-LambdaRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+    DependsOn: TagTamerUserPoolClient
+
+  UserPoolClientLambda:
+  # Lambda which gets userpool app client config values
+  # Depends on UserPool for id
+  # Depends on UserPoolClientRole for role ARN
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        ZipFile: !Join 
+          - |+
+          - - 'const response = require(''cfn-response'');'
+            - 'const aws = require(''aws-sdk'');'
+            - 'const identity = new aws.CognitoIdentityServiceProvider();'
+            - 'exports.handler = (event, context, callback) => {'
+            - ' if (event.RequestType == ''Delete'') { '
+            - '   response.send(event, context, response.SUCCESS, {})'
+            - ' }'
+            - ' if (event.RequestType == ''Update'' || event.RequestType == ''Create'') {'
+            - '   const params = {'
+            - '     ClientId: event.ResourceProperties.clientId,'
+            - '     UserPoolId: event.ResourceProperties.userpoolId'
+            - '   };'
+            - '   identity.describeUserPoolClient(params).promise()'
+            - '     .then((res) => {'
+            - '       response.send(event, context, response.SUCCESS, {''appSecret'': res.UserPoolClient.ClientSecret});'  
+            - '     })'
+            - '     .catch((err) => {'
+            - '       response.send(event, context, response.FAILED, {err});'
+            - '     });'
+            - ' }'
+            - '};'
+      Handler: index.handler
+      Runtime: nodejs10.x
+      Timeout: '300'
+      Role: !GetAtt 
+        - UserPoolClientRole
+        - Arn
+    DependsOn: UserPoolClientRole
+
+  UserPoolClientLambdaPolicy:
+  # Sets userpool policy for the role that executes the Userpool Client Lambda
+  # Depends on UserPool for Arn
+  # Marked as depending on UserPoolClientRole for easier to understand CFN sequencing
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: TagTamer-Lambda-Policy
+      Roles: 
+        - !Ref UserPoolClientRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'cognito-idp:DescribeUserPoolClient'
+            Resource: !GetAtt TagTamerCognitoUserPool.Arn
+    DependsOn: UserPoolClientLambda
+  UserPoolClientLogPolicy:
+  # Sets log policy for the role that executes the Userpool Client Lambda
+  # Depends on UserPool for Arn
+  # Marked as depending on UserPoolClientLambdaPolicy for easier to understand CFN sequencing
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: TagTamer-LambdaLog-Policy
+      Roles: 
+        - !Ref UserPoolClientRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogGroup'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+            Resource: !Sub  
+              - arn:aws:logs:${region}:${account}:log-group:/aws/lambda/${lambda}:log-stream:*
+              - { region: !Ref "AWS::Region",  account: !Ref "AWS::AccountId", lambda: !Ref UserPoolClientLambda}
+    DependsOn: UserPoolClientLambdaPolicy  
+  UserPoolClientInputs:
+  # Values passed to Userpool client Lambda
+  # Depends on UserPool for Id
+  # Depends on UserPoolClient for Id
+  # Marked as depending on UserPoolClientLambdaPolicy for easier to understand CFN sequencing
+    Type: 'Custom::LambdaCallout'
+    Properties:
+      ServiceToken: !GetAtt UserPoolClientLambda.Arn
+      clientId: !Ref TagTamerUserPoolClient
+      userpoolId: !Ref TagTamerCognitoUserPool
+    DependsOn: UserPoolClientLogPolicy
+
+
 Outputs:
   InstanceId:
     Description: InstanceId of the newly created EC2 instance
     Value: !Ref EC2Instance
-  AZ:
-    Description: Availability Zone of the newly created EC2 instance
-    Value: !GetAtt 
-      - EC2Instance
-      - AvailabilityZone
+#  AZ:
+#    Description: Availability Zone of the newly created EC2 instance
+#    Value: !GetAtt 
+#      - EC2Instance
+#      - AvailabilityZone
   EC2InstancePrivateIP:
     Description: PrivateIP assigned to EC2Instance
     Value: !GetAtt 
@@ -468,9 +803,12 @@ Outputs:
     Value: !GetAtt 
       - PublicLoadBalancer
       - DNSName
+  TagTamerURL:
+    Description: Login URL for Tag Tamer Application
+    Value: !Sub https://${PublicLoadBalancer.DNSName}/sign-in
+
 #  PublicIP:
 #    Description: Public IP address of the newly created EC2 instance
 #    Value: !GetAtt 
 #      - EC2Instance
 #      - PublicIp
-
