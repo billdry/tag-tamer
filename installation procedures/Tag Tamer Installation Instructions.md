@@ -4,7 +4,7 @@ Version - 3
 
 Author: Bill Dry - bdry@amazon.com - +1-919-345-7347
 
-## Tag Tamer Solution Installation Procedure
+## Tag Tamer solution installation procedure
 
 ### Before you begin (Prerequisites):
 
