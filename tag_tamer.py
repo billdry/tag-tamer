@@ -35,7 +35,7 @@ from utilities import *
 # Import flask framework module & classes to build API's
 import flask, flask_wtf
 from flask import Flask, jsonify, make_response, redirect, render_template, request, url_for
-# Use only flask_awscognito version 1.2.6 or higher from https://github.com/billdry/Flask-AWSCognito/
+# Use only flask_awscognito version 1.2.6 or higher from Tag Tamer
 from flask_awscognito import AWSCognitoAuthentication
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
 # Import JSON parser
@@ -283,21 +283,21 @@ def tag_filter():
 @app.route('/tag-based-search', methods=['GET'])
 @aws_auth.authentication_required
 def tag_based_search():
-    if request.form.get('resource_type'):
-        resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+    if request.args.get('resource_type'):
+        resource_type, unit = get_resource_type_unit(request.args.get('resource_type'))
         inventory = resources_tags(resource_type, unit, region)
         selected_tag_keys = inventory.get_tag_keys()
         selected_tag_values = inventory.get_tag_values()
 
         return render_template('tag-search.html', 
-                resource_type=request.form.get('resource_type'),
+                resource_type=request.args.get('resource_type'),
                 tag_keys=selected_tag_keys, 
                 tag_values=selected_tag_values)
     else:
         return render_template('select-resource-type.html', destination_route='tag_filter')
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
-@app.route('/tag_resources', methods=['POST'])
+@app.route('/tag_resources', methods=['GET','POST'])
 @aws_auth.authentication_required
 def tag_resources():
     if request.form.get('resource_type'):
@@ -312,7 +312,8 @@ def tag_resources():
             resource_type = 's3'
             unit = 'buckets'
         else:
-            return render_template('blank.html')
+            resource_type = 'ec2'
+            unit = 'instances'
         chosen_resource_inventory = resources_tags(resource_type, unit, region)
         chosen_resources = OrderedDict()
         chosen_resources = chosen_resource_inventory.get_resources()
@@ -322,7 +323,7 @@ def tag_resources():
 
         return render_template('tag-resources.html', resource_type=inbound_resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
     else:
-        return redirect(url_for('select_resource_type'))
+        return render_template('blank.html')
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
 @app.route('/apply-tags-to-resources', methods=['POST'])

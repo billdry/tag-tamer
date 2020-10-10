@@ -185,7 +185,7 @@ class resources_tags:
                     try:
                         for tag in item.tags:
                             if not re.search("^aws:", tag["Key"]):
-                                sorted_tag_keys_inventory.append(tag["Value"])
+                                sorted_tag_keys_inventory.append(tag["Key"])
                     except:
                         sorted_tag_keys_inventory.append("No Tags Found")
             except botocore.exceptions.ClientError as error:
@@ -198,7 +198,7 @@ class resources_tags:
                     try:
                         for tag in item.tags:
                             if not re.search("^aws:", tag["Key"]):
-                                sorted_tag_keys_inventory.append(tag["Value"])
+                                sorted_tag_keys_inventory.append(tag["Key"])
                     except:
                         sorted_tag_keys_inventory.append("No Tags Found")
             except botocore.exceptions.ClientError as error:
@@ -211,7 +211,7 @@ class resources_tags:
                     try:
                         for tag in selected_resource_type.BucketTagging(item.name).tag_set:
                             if not re.search("^aws:", tag["Key"]):
-                                sorted_tag_keys_inventory.append(tag["Value"])
+                                sorted_tag_keys_inventory.append(tag["Key"])
                     except:
                         sorted_tag_keys_inventory.append("No Tags Found")
             except botocore.exceptions.ClientError as error:
