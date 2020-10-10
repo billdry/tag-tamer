@@ -29,6 +29,8 @@ from service_catalog import service_catalog
 # Import getter/setter module for AWS SSM Parameter Store
 import ssm_parameter_store
 from ssm_parameter_store import ssm_parameter_store
+# Import Tag Tamer utility functions
+from utilities import *
 
 # Import flask framework module & classes to build API's
 import flask, flask_wtf
@@ -281,7 +283,18 @@ def tag_filter():
 @app.route('/tag-based-search', methods=['GET'])
 @aws_auth.authentication_required
 def tag_based_search():
-    return render_template('tag-search.html')
+    if request.form.get('resource_type'):
+        resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+        inventory = resources_tags(resource_type, unit, region)
+        selected_tag_keys = inventory.get_tag_keys()
+        selected_tag_values = inventory.get_tag_values()
+
+        return render_template('tag-search.html', 
+                resource_type=request.form.get('resource_type'),
+                tag_keys=selected_tag_keys, 
+                tag_values=selected_tag_values)
+    else:
+        return render_template('select-resource-type.html', destination_route='tag_filter')
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
 @app.route('/tag_resources', methods=['POST'])

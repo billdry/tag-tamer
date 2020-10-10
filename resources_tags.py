@@ -110,7 +110,8 @@ class resources_tags:
         ordered_inventory = sorted(named_resource_inventory.items(), key=lambda item: item[1])
         return ordered_inventory
             
-    #Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
+    # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
+    # No input arguments
     def get_resources_tags(self):
 
         selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
@@ -171,7 +172,8 @@ class resources_tags:
 
         return sorted_tagged_resource_inventory
 
-    #Getter method retrieves every tag:key for a supplied resource type
+    # Getter method retrieves every tag:key for object's resource type
+    # No input arguments
     def get_tag_keys(self):
 
         selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
@@ -223,7 +225,8 @@ class resources_tags:
 
         return sorted_tag_keys_inventory
 
-    #Getter method retrieves every tag:value for a supplied resource type
+    # Getter method retrieves every tag:value for object's resource type
+    # No input arguments
     def get_tag_values(self):
 
         selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
