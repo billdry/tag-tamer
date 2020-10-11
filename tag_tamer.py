@@ -297,31 +297,30 @@ def tag_based_search():
         return render_template('select-resource-type.html', destination_route='tag_filter')
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
-@app.route('/tag_resources', methods=['GET','POST'])
+@app.route('/tag_resources', methods=['POST'])
 @aws_auth.authentication_required
 def tag_resources():
     if request.form.get('resource_type'):
-        inbound_resource_type = request.form.get('resource_type')
-        if request.form.get('resource_type') == "ebs":
-            resource_type = 'ec2'
-            unit = 'volumes'
-        elif request.form.get('resource_type') == "ec2":
-            resource_type = 'ec2'
-            unit = 'instances'
-        elif request.form.get('resource_type') == "s3":
-            resource_type = 's3'
-            unit = 'buckets'
-        else:
-            resource_type = 'ec2'
-            unit = 'instances'
-        chosen_resource_inventory = resources_tags(resource_type, unit, region)
+        filter_elements = dict()
+        if request.form.get('tag_key1'):
+            filter_elements['tag_key1'] = request.form.get('tag_key1')
+        if request.form.get('tag_value1'):
+            filter_elements['tag_value1'] = request.form.get('tag_value1')
+        if request.form.get('tag_key2'):
+            filter_elements['tag_key2'] = request.form.get('tag_key2')
+        if request.form.get('tag_value2'):
+            filter_elements['tag_value2'] = request.form.get('tag_value2')
+        if request.form.get('conjunction'):
+            filter_elements['conjunction'] = request.form.get('conjunction')
+
+        resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+        chosen_resource_inventory = resources_tags(resource_type, unit, region, **filter_elements)
         chosen_resources = OrderedDict()
         chosen_resources = chosen_resource_inventory.get_resources()
-        
         tag_group_inventory = get_tag_groups(region)
         tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values()
 
-        return render_template('tag-resources.html', resource_type=inbound_resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
+        return render_template('tag-resources.html', resource_type=resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
     else:
         return render_template('blank.html')
 
@@ -336,15 +335,7 @@ def apply_tags_to_resources():
         form_contents = request.form.to_dict()
         form_contents.pop("resources_to_tag")
     
-        if request.form.get('resource_type') == "ebs":
-            resource_type = 'ec2'
-            unit = 'volumes'
-        elif request.form.get('resource_type') == "ec2":
-            resource_type = 'ec2'
-            unit = 'instances'
-        elif request.form.get('resource_type') == "s3":
-            resource_type = 's3'
-            unit = 'buckets'
+        resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
         chosen_resources_to_tag = resources_tags(resource_type, unit, region) 
         form_contents.pop("resource_type")
 

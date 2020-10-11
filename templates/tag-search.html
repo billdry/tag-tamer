@@ -27,8 +27,8 @@
         <div class="col-4"></div>
         <div class="col-4">
           <h4 style="text-align: center">Keys</h4>
-          <form method="post" action="{{ url_for('tag_resources') }}">
-            <input type="hidden" name="" value="" />
+          <form method="post" action="{{ url_for('tag_resources') }}" target="tag_apply_bottom_iframe">
+            <input type="hidden" name="resource_type" value="{{ resource_type }}" />
           <div class="form-group">
             <select class="custom-select" id="FormControlSelect1" name="tag_key1">
             <option value=""></option>

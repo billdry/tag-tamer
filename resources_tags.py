@@ -5,14 +5,12 @@
 
 # Import AWS module for python
 import boto3, botocore
-# Import Collections module to manipulate dictionaries
-import collections
-# Import Python's regex module to filter Boto3's API responses 
-import re
 # Import Collections to use ordered dictionaries for storage
 from collections import OrderedDict
 # Import logging module
 import logging
+# Import Python's regex module to filter Boto3's API responses 
+import re
 
 log = logging.getLogger(__name__)
 
@@ -20,10 +18,11 @@ log = logging.getLogger(__name__)
 class resources_tags:
     
     #Class constructor
-    def __init__(self, resource_type, unit, region):
+    def __init__(self, resource_type, unit, region, **filter_tags):
         self.resource_type = resource_type
         self.unit = unit
         self.region = region
+        self.filter_tags = filter_tags
 
     #Returns a sorted list of all resources for the resource type specified  
     def get_resources(self):
@@ -32,7 +31,19 @@ class resources_tags:
         #sorted_resource_inventory = list()
         named_resource_inventory = dict()
 
-        def _get_named_resources(client_command):
+        def _get_filtered_resources(client_command):
+            filter_list = list()
+            if self.filter_tags.get('tag_key1'):
+                tag_dict = dict()
+                if self.filter_tags.get('tag_value1'):
+                    tag_value_list = list()
+                    tag_dict['Name'] = 'tag:' + self.filter_tags.get('tag_key1')
+                    tag_value_list.append(self.filter_tags.get('tag_value1'))
+                    tag_dict['Values'] = tag_value_list
+            else:
+                tag_dict['Name'] = self.filter_tags.get('tag_key1')
+            filter_list.append(tag_dict)    
+
             try:
                 named_resources = getattr(client, client_command)(
                     Filters=[
