@@ -147,15 +147,7 @@ def find_tags():
 @app.route('/found-tags', methods=['POST'])
 @aws_auth.authentication_required
 def found_tags():
-    if request.form.get('resource_type') == "ebs":
-        resource_type = 'ec2'
-        unit = 'volumes'
-    elif request.form.get('resource_type') == "ec2":
-        resource_type = 'ec2'
-        unit = 'instances'
-    elif request.form.get('resource_type') == "s3":
-        resource_type = 's3'
-        unit = 'buckets'
+    resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
     inventory = resources_tags(resource_type, unit, region)
     sorted_tagged_inventory = inventory.get_resources_tags()
     return render_template('found-tags.html', inventory=sorted_tagged_inventory)
@@ -297,7 +289,7 @@ def tag_based_search():
         return render_template('select-resource-type.html', destination_route='tag_filter')
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
-@app.route('/tag_resources', methods=['POST'])
+@app.route('/tag_resources', methods=['GET','POST'])
 @aws_auth.authentication_required
 def tag_resources():
     if request.form.get('resource_type'):
@@ -312,11 +304,11 @@ def tag_resources():
             filter_elements['tag_value2'] = request.form.get('tag_value2')
         if request.form.get('conjunction'):
             filter_elements['conjunction'] = request.form.get('conjunction')
-
+        #print("The filter elements are: ")
         resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-        chosen_resource_inventory = resources_tags(resource_type, unit, region, **filter_elements)
+        chosen_resource_inventory = resources_tags(resource_type, unit, region)
         chosen_resources = OrderedDict()
-        chosen_resources = chosen_resource_inventory.get_resources()
+        chosen_resources = chosen_resource_inventory.get_resources(**filter_elements)
         tag_group_inventory = get_tag_groups(region)
         tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values()
 

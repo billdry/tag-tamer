@@ -5,7 +5,7 @@
 
 # Import AWS module for python
 import boto3, botocore
-# Import Collections to use ordered dictionaries for storage
+# Import collections to use ordered dictionaries for storage
 from collections import OrderedDict
 # Import logging module
 import logging
@@ -18,32 +18,65 @@ log = logging.getLogger(__name__)
 class resources_tags:
     
     #Class constructor
-    def __init__(self, resource_type, unit, region, **filter_tags):
+    def __init__(self, resource_type, unit, region):
         self.resource_type = resource_type
         self.unit = unit
         self.region = region
-        self.filter_tags = filter_tags
 
     #Returns a sorted list of all resources for the resource type specified  
-    def get_resources(self):
+    def get_resources(self, **filter_tags):
+        self.filter_tags = dict()
+        if filter_tags.get('tag_key1') or filter_tags.get('tag_key2'):
+            self.filter_tags = filter_tags
+        #print("The filter tags are: ", self.filter_tags)
         selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
         client = boto3.client(self.resource_type, region_name=self.region)
         #sorted_resource_inventory = list()
         named_resource_inventory = dict()
 
         def _get_filtered_resources(client_command):
-            filter_list = list()
-            if self.filter_tags.get('tag_key1'):
-                tag_dict = dict()
-                if self.filter_tags.get('tag_value1'):
+            filters_list = list()
+            
+            # Add any selected tag keys and values to the resource filter
+            if self.filter_tags.get('conjunction') == 'AND':
+                if self.filter_tags.get('tag_key1'):
+                    tag_dict = dict()
                     tag_value_list = list()
-                    tag_dict['Name'] = 'tag:' + self.filter_tags.get('tag_key1')
-                    tag_value_list.append(self.filter_tags.get('tag_value1'))
+                    if self.filter_tags.get('tag_value1'):
+                        tag_dict['Name'] = 'tag:' + self.filter_tags.get('tag_key1')
+                        tag_value_list.append(self.filter_tags.get('tag_value1'))
+                    else:
+                        tag_dict['Name'] = 'tag-key'
+                        tag_value_list.append(self.filter_tags.get('tag_key1'))
                     tag_dict['Values'] = tag_value_list
-            else:
-                tag_dict['Name'] = self.filter_tags.get('tag_key1')
-            filter_list.append(tag_dict)    
+                    filters_list.append(tag_dict)
+                if self.filter_tags.get('tag_key2'):
+                    tag_dict = dict()
+                    tag_value_list = list()
+                    if self.filter_tags.get('tag_value2'):
+                        tag_dict['Name'] = 'tag:' + self.filter_tags.get('tag_key2')
+                        tag_value_list.append(self.filter_tags.get('tag_value2'))
+                    else:
+                        tag_dict['Name'] = 'tag-key'
+                        tag_value_list.append(self.filter_tags.get('tag_key2'))
+                    tag_dict['Values'] = tag_value_list
+                    filters_list.append(tag_dict)
+            #print("The filter list is: ", filters_list)
+            
+            try:
+                filtered_resources = getattr(client, client_command)(
+                    Filters=filters_list
+                )
+                log.debug("The filtered resources are: {}".format(filtered_resources))
+                return filtered_resources
+                
+            except botocore.exceptions.ClientError as error:
+                errorString = "Boto3 API returned error: {}"
+                log.error(errorString.format(error))
+                filtered_resources = dict()
+                return filtered_resources
 
+        def _get_named_resources(client_command):
             try:
                 named_resources = getattr(client, client_command)(
                     Filters=[
@@ -58,31 +91,44 @@ class resources_tags:
                 )
                 log.debug("The named resources are: {}".format(named_resources))
                 return named_resources
-                
+
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {}"
                 log.error(errorString.format(error))
                 named_resources = dict()
                 return named_resources
 
+
         if self.unit == 'instances':
-            try:
-                named_resources = _get_named_resources('describe_instances')
-                for resource in selected_resource_type.instances.all():
-                    named_resource_inventory[resource.id] = 'Unnamed'
-                for item in named_resources['Reservations']:
-                    for resource in item['Instances']:
-                        for tag in resource['Tags']:
-                            if(tag['Key'].lower() == 'name'):
-                                named_resource_inventory[resource['InstanceId']] = tag['Value']
-                
-            except botocore.exceptions.ClientError as error:
-                errorString = "Boto3 API returned error: {}"
-                log.error(errorString.format(error))
+            if self.filter_tags.get('tag_key1') or self.filter_tags.get('tag_key2'):
+                try:
+                    filtered_resources = _get_filtered_resources('describe_instances')
+                    for item in filtered_resources['Reservations']:
+                        for resource in item['Instances']:
+                            named_resource_inventory[resource['InstanceId']] = 'Unnamed'
+                            for tag in resource['Tags']:
+                                if(tag['Key'].lower() == 'name'):
+                                    named_resource_inventory[resource['InstanceId']] = tag['Value']
+
+                except botocore.exceptions.ClientError as error:
+                    log.error("Boto3 API returned error: {}".format(error))
+            else:
+                try:
+                    named_resources = _get_named_resources('describe_instances')
+                    for resource in selected_resource_type.instances.all():
+                        named_resource_inventory[resource.id] = 'Unnamed'
+                    for item in named_resources['Reservations']:
+                        for resource in item['Instances']:
+                            for tag in resource['Tags']:
+                                if(tag['Key'].lower() == 'name'):
+                                    named_resource_inventory[resource['InstanceId']] = tag['Value']
+                    
+                except botocore.exceptions.ClientError as error:
+                    log.error("Boto3 API returned error: {}".format(error))
 
         elif self.unit == 'volumes':
             try:
-                named_resources = _get_named_resources('describe_volumes')
+                named_resources = _get_filtered_resources('describe_volumes')
                 for resource in selected_resource_type.volumes.all():
                     named_resource_inventory[resource.id] = 'Unnamed'
                 for item in named_resources['Volumes']:
@@ -144,7 +190,7 @@ class resources_tags:
                                 resource_tags[tag["Key"]] = tag["Value"]
                     except:
                         resource_tags["No Tags Found"] = "No Tags Found"
-                    sorted_resource_tags = collections.OrderedDict(sorted(resource_tags.items()))
+                    sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
                     tagged_resource_inventory[item.id] = sorted_resource_tags
             except:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
@@ -159,7 +205,7 @@ class resources_tags:
                                 resource_tags[tag["Key"]] = tag["Value"]
                     except:
                         resource_tags["No Tags Found"] = "No Tags Found"
-                    sorted_resource_tags = collections.OrderedDict(sorted(resource_tags.items()))
+                    sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
                     tagged_resource_inventory[item.id] = sorted_resource_tags
             except:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
@@ -174,12 +220,12 @@ class resources_tags:
                                 resource_tags[tag["Key"]] = tag["Value"]
                     except:
                         resource_tags["No Tags Found"] = "No Tags Found"
-                    sorted_resource_tags = collections.OrderedDict(sorted(resource_tags.items()))
+                    sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
                     tagged_resource_inventory[item.name] = sorted_resource_tags
             except:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
 
-        sorted_tagged_resource_inventory = collections.OrderedDict(sorted(tagged_resource_inventory.items()))
+        sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
 
         return sorted_tagged_resource_inventory
 
