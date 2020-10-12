@@ -165,12 +165,7 @@ def get_tag_group_names():
     all_tag_groups = get_tag_groups(region)
     tag_group_names = all_tag_groups.get_tag_group_names()
     
-    if request.form.get('resource_type') == "ebs":
-        resource_type = 'ebs'
-    elif request.form.get('resource_type') == "ec2":
-        resource_type = 'ec2'
-    elif request.form.get('resource_type') == "s3":
-        resource_type = 's3'
+    resource_type, _ = get_resource_type_unit(request.form.get('resource_type'))
 
     return render_template('display-tag-groups.html', inventory=tag_group_names, resource_type=resource_type)
 
@@ -178,15 +173,7 @@ def get_tag_group_names():
 @app.route('/edit-tag-group', methods=['POST'])
 @aws_auth.authentication_required
 def edit_tag_group():
-    if request.form.get('resource_type') == "ebs":
-        resource_type = 'ec2'
-        unit = 'volumes'
-    elif request.form.get('resource_type') == "ec2":
-        resource_type = 'ec2'
-        unit = 'instances'
-    elif request.form.get('resource_type') == "s3":
-        resource_type = 's3'
-        unit = 'buckets'
+    resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
     inventory = resources_tags(resource_type, unit, region)
     sorted_tag_values_inventory = inventory.get_tag_values()
 
@@ -239,15 +226,7 @@ def add_update_tag_group():
     tag_groups = get_tag_groups(region)
     tag_group_key_values = tag_groups.get_tag_group_key_values(tag_group_name)
 
-    if request.form.get('resource_type') == "ebs":
-        resource_type = 'ec2'
-        unit = 'volumes'
-    elif request.form.get('resource_type') == "ec2":
-        resource_type = 'ec2'
-        unit = 'instances'
-    elif request.form.get('resource_type') == "s3":
-        resource_type = 's3'
-        unit = 'buckets'
+    resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
     inventory = resources_tags(resource_type, unit, region)
     sorted_tag_values_inventory = inventory.get_tag_values()
 
@@ -492,7 +471,4 @@ def logout():
     log.info("User \"{}\" signed out on {}".format(claims.get('username'), date_time_now()))
     response = make_response(render_template('logout.html'))
     unset_jwt_cookies(response)
-    return response, 200
-
-#if __name__ == '__main__':
-#    app.run()          
+    return response, 200       
