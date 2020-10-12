@@ -304,7 +304,7 @@ def tag_resources():
             filter_elements['tag_value2'] = request.form.get('tag_value2')
         if request.form.get('conjunction'):
             filter_elements['conjunction'] = request.form.get('conjunction')
-        #print("The filter elements are: ")
+        
         resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
         chosen_resource_inventory = resources_tags(resource_type, unit, region)
         chosen_resources = OrderedDict()
