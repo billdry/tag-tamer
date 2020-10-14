@@ -8,11 +8,12 @@ from flask_awscognito.exceptions import FlaskAWSCognitoError, TokenVerifyError
 
 class TokenService:
     def __init__(self, user_pool_id, user_pool_client_id, region, request_client=None):
-        self.region = region
+        # Remove any unexpected leading/trailing whitespace using .strip()
+        self.region = region.strip()
         if not self.region:
             raise FlaskAWSCognitoError("No AWS region provided")
-        self.user_pool_id = user_pool_id
-        self.user_pool_client_id = user_pool_client_id
+        self.user_pool_id = user_pool_id.strip()
+        self.user_pool_client_id = user_pool_client_id.strip()
         self.claims = None
         if not request_client:
             self.request_client = requests.get
