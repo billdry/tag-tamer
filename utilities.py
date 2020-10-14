@@ -7,7 +7,7 @@
 def get_resource_type_unit(type):
     if type:
         if type == "ebs":
-            resource_type = 'ec2'
+            resource_type = 'ebs'
             unit = 'volumes'
         elif type == "ec2":
             resource_type = 'ec2'

@@ -37,18 +37,9 @@
     <br />
     <div class="container">
       <form method="post" action="{{ url_for('select_resource_type') }}">
-        <input type="hidden" name="next_route" value="tag_resources" />
-        <button type="submit" class="btn btn-primary btn-lg">
-          Tag your existing AWS resources using your Tag Groups
-        </button>
-      </form>
-    </div>
-    <br />
-    <div class="container">
-      <form method="post" action="{{ url_for('select_resource_type') }}">
         <input type="hidden" name="next_route" value="tag_filter" />
         <button type="submit" class="btn btn-primary btn-lg">
-          Click to see the tag filter prototype
+          Tag your existing AWS resources using your Tag Groups
         </button>
       </form>
     </div>

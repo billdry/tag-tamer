@@ -271,6 +271,7 @@ def tag_based_search():
 @app.route('/tag_resources', methods=['GET','POST'])
 @aws_auth.authentication_required
 def tag_resources():
+    #if request.form.get('tag_key1') or request.form.get('tag_key2'):
     if request.form.get('resource_type'):
         filter_elements = dict()
         if request.form.get('tag_key1'):
@@ -290,7 +291,6 @@ def tag_resources():
         chosen_resources = chosen_resource_inventory.get_resources(**filter_elements)
         tag_group_inventory = get_tag_groups(region)
         tag_groups_all_info = tag_group_inventory.get_all_tag_groups_key_values()
-
         return render_template('tag-resources.html', resource_type=resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
     else:
         return render_template('blank.html')
@@ -326,7 +326,7 @@ def apply_tags_to_resources():
         
         return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
     else:
-        return redirect(url_for('select_resource_type'))
+        return render_template('blank.html')
 
 # Retrieves AWS Service Catalog products & Tag Groups
 @app.route('/get-service-catalog', methods=['GET'])

@@ -19,7 +19,11 @@ class resources_tags:
     
     #Class constructor
     def __init__(self, resource_type, unit, region):
-        self.resource_type = resource_type
+        # EBS uses the "ec2" Boto3 client
+        if resource_type == "ebs":
+            self.resource_type = "ec2"
+        else:
+            self.resource_type = resource_type
         self.unit = unit
         self.region = region
 
@@ -32,10 +36,25 @@ class resources_tags:
         selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
         client = boto3.client(self.resource_type, region_name=self.region)
         #sorted_resource_inventory = list()
-        named_resource_inventory = dict()
 
         def _get_filtered_resources(client_command):
+            
             filters_list = list()
+
+            # Issue Boto3 method using client, client command & filters list
+            def _boto3_get_method():
+                try:
+                    filtered_resources = getattr(client, client_command)(
+                        Filters=filters_list
+                    )
+                    log.debug("The filtered resources are: {}".format(filtered_resources))
+                    return filtered_resources
+                    
+                except botocore.exceptions.ClientError as error:
+                    errorString = "Boto3 API returned error: {}"
+                    log.error(errorString.format(error))
+                    filtered_resources = dict()
+                    return filtered_resources
             
             # Add any selected tag keys and values to the resource filter
             if self.filter_tags.get('conjunction') == 'AND':
@@ -61,20 +80,58 @@ class resources_tags:
                         tag_value_list.append(self.filter_tags.get('tag_key2'))
                     tag_dict['Values'] = tag_value_list
                     filters_list.append(tag_dict)
-            #print("The filter list is: ", filters_list)
-            
-            try:
-                filtered_resources = getattr(client, client_command)(
-                    Filters=filters_list
-                )
-                log.debug("The filtered resources are: {}".format(filtered_resources))
-                return filtered_resources
                 
-            except botocore.exceptions.ClientError as error:
-                errorString = "Boto3 API returned error: {}"
-                log.error(errorString.format(error))
-                filtered_resources = dict()
-                return filtered_resources
+                requested_resources = _boto3_get_method()
+                returned_dict = dict()
+                returned_dict['results_1'] = requested_resources
+                return returned_dict
+
+            elif self.filter_tags.get('conjunction') == 'OR':
+                tag1_matching_resources = dict()
+                tag2_matching_resources = dict()
+                if self.filter_tags.get('tag_key1'):
+                    tag_dict = dict()
+                    tag_value_list = list()
+                    if self.filter_tags.get('tag_value1'):
+                        tag_dict['Name'] = 'tag:' + self.filter_tags.get('tag_key1')
+                        tag_value_list.append(self.filter_tags.get('tag_value1'))
+                    else:
+                        tag_dict['Name'] = 'tag-key'
+                        tag_value_list.append(self.filter_tags.get('tag_key1'))
+                    tag_dict['Values'] = tag_value_list
+                    filters_list.append(tag_dict)
+                    tag1_matching_resources = _boto3_get_method()
+                if self.filter_tags.get('tag_key2'):
+                    filters_list = list()
+                    tag_dict = dict()
+                    tag_value_list = list()
+                    if self.filter_tags.get('tag_value2'):
+                        tag_dict['Name'] = 'tag:' + self.filter_tags.get('tag_key2')
+                        tag_value_list.append(self.filter_tags.get('tag_value2'))
+                    else:
+                        tag_dict['Name'] = 'tag-key'
+                        tag_value_list.append(self.filter_tags.get('tag_key2'))
+                    tag_dict['Values'] = tag_value_list
+                    filters_list.append(tag_dict)
+                    tag2_matching_resources = _boto3_get_method()
+            
+                returned_dict = dict()
+                # Place Boto3 filtered results into a dictionary return package
+                if tag1_matching_resources and tag2_matching_resources:
+                    returned_dict['results_1'] = tag1_matching_resources
+                    returned_dict['results_2'] = tag2_matching_resources
+                    return returned_dict
+                elif tag1_matching_resources and not tag2_matching_resources:
+                    returned_dict['results_1'] = tag1_matching_resources
+                    return returned_dict
+                elif not tag1_matching_resources and tag2_matching_resources:
+                    returned_dict['results_1'] = tag2_matching_resources
+                    return returned_dict
+                else:
+                    return None
+
+            else:
+                    return None
 
         def _get_named_resources(client_command):
             try:
@@ -98,17 +155,18 @@ class resources_tags:
                 named_resources = dict()
                 return named_resources
 
-
+        named_resource_inventory = dict()
         if self.unit == 'instances':
             if self.filter_tags.get('tag_key1') or self.filter_tags.get('tag_key2'):
                 try:
                     filtered_resources = _get_filtered_resources('describe_instances')
-                    for item in filtered_resources['Reservations']:
-                        for resource in item['Instances']:
-                            named_resource_inventory[resource['InstanceId']] = 'Unnamed'
-                            for tag in resource['Tags']:
-                                if(tag['Key'].lower() == 'name'):
-                                    named_resource_inventory[resource['InstanceId']] = tag['Value']
+                    for _, results in filtered_resources.items():
+                        for item in results['Reservations']:
+                            for resource in item['Instances']:
+                                named_resource_inventory[resource['InstanceId']] = 'no name found'
+                                for tag in resource['Tags']:
+                                    if(tag['Key'].lower() == 'name'):
+                                        named_resource_inventory[resource['InstanceId']] = tag['Value']
 
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
@@ -116,7 +174,7 @@ class resources_tags:
                 try:
                     named_resources = _get_named_resources('describe_instances')
                     for resource in selected_resource_type.instances.all():
-                        named_resource_inventory[resource.id] = 'Unnamed'
+                        named_resource_inventory[resource.id] = 'no name found'
                     for item in named_resources['Reservations']:
                         for resource in item['Instances']:
                             for tag in resource['Tags']:
@@ -127,39 +185,62 @@ class resources_tags:
                     log.error("Boto3 API returned error: {}".format(error))
 
         elif self.unit == 'volumes':
-            try:
-                named_resources = _get_filtered_resources('describe_volumes')
-                for resource in selected_resource_type.volumes.all():
-                    named_resource_inventory[resource.id] = 'Unnamed'
-                for item in named_resources['Volumes']:
-                        for tag in item['Tags']:
-                            if(tag['Key'].lower() == 'name'):
-                                named_resource_inventory[item['VolumeId']] = tag['Value']
-                
-            except botocore.exceptions.ClientError as error:
-                errorString = "Boto3 API returned error: {}"
-                log.error(errorString.format(error))
+            if self.filter_tags.get('tag_key1') or self.filter_tags.get('tag_key2'):
+                try:
+                    filtered_resources = _get_filtered_resources('describe_volumes')
+                    for _, results in filtered_resources.items():
+                        for item in results['Volumes']:
+                            named_resource_inventory[item['VolumeId']] = 'no name found'
+                            for tag in item['Tags']:
+                                if(tag['Key'].lower() == 'name'):
+                                    named_resource_inventory[item['VolumeId']] = tag['Value']
+
+                except botocore.exceptions.ClientError as error:
+                    log.error("Boto3 API returned error: {}".format(error))
+            else:
+                try:
+                    named_resources = _get_named_resources('describe_volumes')
+                    for resource in selected_resource_type.volumes.all():
+                        named_resource_inventory[resource.id] = 'no name found'
+                    for item in named_resources['Volumes']:
+                            for tag in item['Tags']:
+                                if(tag['Key'].lower() == 'name'):
+                                    named_resource_inventory[item['VolumeId']] = tag['Value']
+                    
+                except botocore.exceptions.ClientError as error:
+                    errorString = "Boto3 API returned error: {}"
+                    log.error(errorString.format(error))
 
         elif self.unit == 'buckets':
-            for resource in selected_resource_type.buckets.all(): 
-                log.debug("This bucket name is: {}".format(resource))
-                try:
-                    response = client.get_bucket_tagging(
-                        Bucket=resource.name
-                    )
-                except botocore.exceptions.ClientError as error:
-                    errorString = "Boto3 API returned error: {} {}"
-                    log.error(errorString.format(resource.name, error))
-                    response = dict()
-                if 'TagSet' in response:
-                    for tag in response['TagSet']:
-                        if(tag['Key'].lower() == 'name'):
-                            log.debug("{} bucket has a name tag".format(resource.name))
-                            named_resource_inventory[resource.name] = tag['Value']
-                            break
-                        else:
-                            named_resource_inventory[resource.name] = resource.name
-                else:
+            if self.filter_tags.get('tag_key1') or self.filter_tags.get('tag_key2'):
+                for resource in selected_resource_type.buckets.all(): 
+                    log.debug("This bucket name is: {}".format(resource))
+                    try:
+                        response = client.get_bucket_tagging(
+                            Bucket=resource.name
+                        )
+                    except botocore.exceptions.ClientError as error:
+                        errorString = "Boto3 API returned error: {} {}"
+                        log.error(errorString.format(resource.name, error))
+                        response = dict()
+                    if 'TagSet' in response:
+                        for tag in response['TagSet']:
+                            if self.filter_tags.get('tag_key1'):
+                                if self.filter_tags.get('tag_value1'):
+                                    if tag.get('Key') == self.filter_tags.get('tag_key1') and tag.get('Value') == self.filter_tags.get('tag_value1'):
+                                        named_resource_inventory[resource.name] = resource.name
+                                else:
+                                    if tag.get('Key') == self.filter_tags.get('tag_key1'):
+                                        named_resource_inventory[resource.name] = resource.name
+                            if self.filter_tags.get('tag_key2'):
+                                if self.filter_tags.get('tag_value2'):
+                                    if tag.get('Key') == self.filter_tags.get('tag_key2') and tag.get('Value') == self.filter_tags.get('tag_value2'):
+                                        named_resource_inventory[resource.name] = resource.name
+                                else:
+                                    if tag.get('Key') == self.filter_tags.get('tag_key2'):
+                                        named_resource_inventory[resource.name] = resource.name
+            else:
+                for resource in selected_resource_type.buckets.all():   
                     named_resource_inventory[resource.name] = resource.name
                 log.debug("The buckets list is: {}".format(named_resource_inventory)) 
         ordered_inventory = OrderedDict()
@@ -380,8 +461,10 @@ class resources_tags:
                     log.error(errorString.format(resource_id, error))
 
                 if current_applied_tags.get('TagSet'):
-                    for tag in current_applied_tags['TagSet']:
-                        chosen_tags.append(tag)
+                    for current_tag in current_applied_tags['TagSet']:
+                        for new_tag in chosen_tags:
+                            if new_tag['Key'] != current_tag['Key']:
+                                chosen_tags.append(current_tag)
                 tag_set_dict['TagSet'] = chosen_tags
                 log.debug("The chosen tags for {} are {}".format(resource_id, tag_set_dict))
                 try:
