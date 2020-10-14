@@ -1,6 +1,7 @@
 {
     "parameters": {
         "default_region": "us-east-1",
+        "log_file_location": "./log/tag_tamer.log",
         "logging_level": "INFO",
         "selected_regions": [
                 "us-east-1"
