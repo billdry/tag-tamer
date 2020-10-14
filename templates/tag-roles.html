@@ -23,7 +23,7 @@
                     </table>
 
         <form method="post" action="{{ url_for('set_roles_tags') }}">  
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>          
+            <input type="hidden" name="" value=""/>          
                     <div class="form-group">
                         <select class="custom-select" id="FormControlSelect1" name="roles_to_tag" size="10">
                         {% for role_id in roles_inventory %}
@@ -61,7 +61,6 @@
         <br>
         <span style="text-align:center;">
             <form method="get" action="{{ url_for('actions') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <button type="submit" class="btn btn-primary btn-lg">Home</button>
                 <button type="submit" class="btn btn-outline-primary btn-lg">Cancel</button>
             </form>

@@ -14,7 +14,7 @@
     <br>
         <div class="container">
         <form method="post" action="{{ url_for('get_tag_group_names') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="" value=""/>
             <div class="form-check">
                 <input class="form-check-input" type="radio" id="ebsRadio" value="ebs" name="resource_type" checked>
                     <label class="form-check-label" for="ebsRadio">EBS Volumes</label>
@@ -35,7 +35,6 @@
         <br>
         <div class="container">
             <form method="get" action="{{ url_for('actions') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <button type="submit" class="btn btn-primary btn-lg">Home</button>
                 <button type="submit" class="btn btn-outline-primary btn-lg">Cancel</button>
             </form>

@@ -35,14 +35,13 @@ class set_tag_group:
                     },
                     ReturnValues='NONE',
                 )
-                log.info('Successfully created Tag Group \"%s\" with Key \"%s\" & possible values \"%s\"', tag_group_name, tag_group_key_name, tag_group_value_options)
+                log.debug('Successfully created Tag Group \"%s\" with Key \"%s\" & possible values \"%s\"', tag_group_name, tag_group_key_name, tag_group_value_options)
 
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {}"
                 log.error(errorString.format(error))
                 put_item_response = errorString.format(error)
         else:
-            print("Please provide a value for Tag Group name and Tag Key name")
             log.warning("Please provide a value for Tag Group name and Tag Key name")
             put_item_response = "Please provide a value for Tag Group name and Tag Key name"
         return put_item_response
@@ -63,7 +62,7 @@ class set_tag_group:
                 },
                 ReturnValues='NONE',
             )
-            log.info('Successfully updated Tag Group \"%s\" with Key \"%s\" to possible values \"%s\"', tag_group_name, tag_group_key_name, tag_group_value_options)
+            log.debug('Successfully updated Tag Group \"%s\" with Key \"%s\" to possible values \"%s\"', tag_group_name, tag_group_key_name, tag_group_value_options)
 
         except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {}"

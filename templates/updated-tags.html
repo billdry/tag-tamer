@@ -43,8 +43,7 @@
         </table>
     
         <div class="container">
-            <form method="get" action="{{ url_for('actions') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <form method="get" action="{{ url_for('actions') }}" target="home_iframe">
                 <button type="submit" class="btn btn-primary btn-lg">Home</button>
             </form>
         </div>    
