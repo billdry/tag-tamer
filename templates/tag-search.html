@@ -20,65 +20,72 @@
   <body>
     <div class="container-fluid">
       <h3 style="text-align: center">
-        Select any tag keys & values to use as search filters then press submit
+        Select any tag keys & values to use as search filters then press submit; otherwise, just press submit. 
       </h3>
       <br>
       <div class="row">
-        <div class="col-4"></div>
-        <div class="col-4">
-          <h4 style="text-align: center">Keys</h4>
+        <div class="col-3"></div>
+        <div class="col-3">
+          <h4 style="text-align: center"> Tag key</h4>
           <form method="post" action="{{ url_for('tag_resources') }}" target="tag_apply_bottom_iframe">
             <input type="hidden" name="resource_type" value="{{ resource_type }}" />
           <div class="form-group">
             <select class="custom-select" id="FormControlSelect1" name="tag_key1">
-            <option value=""></option>
+            <option value="">Choose a key</option>
             {% for tag_key in tag_keys %}
             <option value="{{ tag_key }}">{{ tag_key }}</option>
             {% endfor %}
             </select>
           </div>
         </div>
-        <div class="col-4">
-          <h4 style="text-align: center">Values</h4>
+        <div class="col-3">
+          <h4 style="text-align: center">Tag value</h4>
           <div class="form-group">
             <select class="custom-select" id="FormControlSelect2" name="tag_value1">
-              <option value=""></option>
+              <option value="">Choose a value</option>
               {% for tag_value in tag_values %}
               <option value="{{ tag_value }}">{{ tag_value }}</option>
               {% endfor %}
             </select>
           </div>
         </div>
+        <div class="col-3"></div>
       </div>
       <div class="row">
-        <div class="col-4">
+        <div class="col-5"></div>
+        <div class="col-2">
           <div class="form-group">
-            <select class="custom-select" id="FormControlSelect3" name="conjunction">
+            <select class="custom-select" id="FormControlSelect3" name="conjunction" style="text-align:center;">
               <option value="AND">AND</option>
               <option value="OR">OR</option>
             </select>
           </div>
         </div>
-        <div class="col-4">
+        <div class="col-5"></div>
+      </div>
+      <div class="row">
+        <div class="col-3"></div>
+        <div class="col-3">
           <div class="form-group">
             <select class="custom-select" id="FormControlSelect4" name="tag_key2">
-              <option value=""></option>
+              <option value="">Choose a key</option>
               {% for tag_key in tag_keys %}
               <option value="{{ tag_key }}">{{ tag_key }}</option>
               {% endfor %}
               </select>
             </div>
           </div>
-          <div class="col-4">
+          <div class="col-3">
             <div class="form-group">
               <select class="custom-select" id="FormControlSelect5" name="tag_value2">
-                <option value=""></option>
+                <option value="">Choose a value</option>
                 {% for tag_value in tag_values %}
                 <option value="{{ tag_value }}">{{ tag_value }}</option>
                 {% endfor %}
               </select>
           </div>
         </div>
+        <div class="col-3"></div>
       </div>
     </div>
     <div class="text-center">

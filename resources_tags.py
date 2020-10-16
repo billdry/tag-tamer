@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # copyright 2020 Bill Dry
-# Getter & setter for resources & tags.
+# Getter & setter for AWS resources & tags.
 
 # Import AWS module for python
 import boto3, botocore
@@ -12,6 +12,7 @@ import logging
 # Import Python's regex module to filter Boto3's API responses 
 import re
 
+# Instantiate logging for this module using its file name
 log = logging.getLogger(__name__)
 
 # Define resources_tags class to get/set resources & their assigned tags
@@ -29,13 +30,13 @@ class resources_tags:
 
     #Returns a sorted list of all resources for the resource type specified  
     def get_resources(self, **filter_tags):
+        
         self.filter_tags = dict()
         if filter_tags.get('tag_key1') or filter_tags.get('tag_key2'):
             self.filter_tags = filter_tags
-        #print("The filter tags are: ", self.filter_tags)
-        selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
+            log.debug("The received filter tags are: {}".format(self.filter_tags))
+        
         client = boto3.client(self.resource_type, region_name=self.region)
-        #sorted_resource_inventory = list()
 
         def _get_filtered_resources(client_command):
             
@@ -173,6 +174,7 @@ class resources_tags:
             else:
                 try:
                     named_resources = _get_named_resources('describe_instances')
+                    selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                     for resource in selected_resource_type.instances.all():
                         named_resource_inventory[resource.id] = 'no name found'
                     for item in named_resources['Reservations']:
@@ -200,6 +202,7 @@ class resources_tags:
             else:
                 try:
                     named_resources = _get_named_resources('describe_volumes')
+                    selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                     for resource in selected_resource_type.volumes.all():
                         named_resource_inventory[resource.id] = 'no name found'
                     for item in named_resources['Volumes']:
@@ -240,6 +243,7 @@ class resources_tags:
                                     if tag.get('Key') == self.filter_tags.get('tag_key2'):
                                         named_resource_inventory[resource.name] = resource.name
             else:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for resource in selected_resource_type.buckets.all():   
                     named_resource_inventory[resource.name] = resource.name
                 log.debug("The buckets list is: {}".format(named_resource_inventory)) 
@@ -252,8 +256,6 @@ class resources_tags:
     # No input arguments
     def get_resources_tags(self):
 
-        selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
-        
         # Instantiate dictionaries to hold resources & their tags
         tagged_resource_inventory = {}
         sorted_tagged_resource_inventory = {}
@@ -262,6 +264,7 @@ class resources_tags:
         # indexed by resource ID
         if self.unit == 'instances':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.instances.all():
                     resource_tags = {}
                     sorted_resource_tags = {}
@@ -277,6 +280,7 @@ class resources_tags:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
         elif self.unit == 'volumes':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.volumes.all():
                     resource_tags = {}
                     sorted_resource_tags = {}
@@ -292,6 +296,7 @@ class resources_tags:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
         elif self.unit == 'buckets':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.buckets.all():
                     resource_tags = {}
                     sorted_resource_tags = {}
@@ -305,6 +310,30 @@ class resources_tags:
                     tagged_resource_inventory[item.name] = sorted_resource_tags
             except:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
+        elif self.unit == 'functions':
+            try:
+                client = boto3.client(self.resource_type, region_name=self.region)
+                my_functions = client.list_functions()
+                for item in my_functions['Functions']:
+                    resource_tags = {}
+                    sorted_resource_tags = {}
+                    function_arn = item['FunctionArn']
+                    try:
+                        response = client.list_tags(
+                            Resource=function_arn
+                        )
+                        for tag_key, tag_value in response['Tags'].items():       
+                            if not re.search("^aws:", tag_key):
+                                resource_tags[tag_key] = tag_value
+
+                    except botocore.exceptions.ClientError as error:
+                        log.error("Boto3 API returned error: {}".format(error))
+                        resource_tags["No Tags Found"] = "No Tags Found"
+                    sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
+                    tagged_resource_inventory[item['FunctionName']] = sorted_resource_tags
+            except botocore.exceptions.ClientError as error:
+                log.error("Boto3 API returned error: {}".format(error))
+                tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
 
@@ -314,11 +343,11 @@ class resources_tags:
     # No input arguments
     def get_tag_keys(self):
 
-        selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
         sorted_tag_keys_inventory = list()
 
         if self.unit == 'instances':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.instances.all():
                     try:
                         for tag in item.tags:
@@ -332,6 +361,7 @@ class resources_tags:
                 sorted_tag_keys_inventory.append("No Tags Found")
         elif self.unit == 'volumes':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.volumes.all():
                     try:
                         for tag in item.tags:
@@ -345,6 +375,7 @@ class resources_tags:
                 sorted_tag_keys_inventory.append("No Tags Found")
         elif self.unit == 'buckets':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.buckets.all():
                     try:
                         for tag in selected_resource_type.BucketTagging(item.name).tag_set:
@@ -367,11 +398,11 @@ class resources_tags:
     # No input arguments
     def get_tag_values(self):
 
-        selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
         sorted_tag_values_inventory = list()
 
         if self.unit == 'instances':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.instances.all():
                     try:
                         for tag in item.tags:
@@ -385,6 +416,7 @@ class resources_tags:
                 sorted_tag_values_inventory.append("No Tags Found")
         elif self.unit == 'volumes':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.volumes.all():
                     try:
                         for tag in item.tags:
@@ -398,6 +430,7 @@ class resources_tags:
                 sorted_tag_values_inventory.append("No Tags Found")
         elif self.unit == 'buckets':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for item in selected_resource_type.buckets.all():
                     try:
                         for tag in selected_resource_type.BucketTagging(item.name).tag_set:
@@ -419,12 +452,11 @@ class resources_tags:
     #Setter method to update tags on user-selected resources 
     def set_resources_tags(self, resources_to_tag, chosen_tags):
 
-        selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
-
         resources_updated_tags = {}
 
         if self.unit == 'instances':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for resource_id in resources_to_tag:
                         resource_tag_list = []
                         instance = selected_resource_type.Instance(resource_id)
@@ -436,6 +468,7 @@ class resources_tags:
                 resources_updated_tags["No Resources Found"] = "No Tags Applied"
         elif self.unit == 'volumes':
             try:
+                selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                 for resource_id in resources_to_tag:
                         resource_tag_list = []
                         volume = selected_resource_type.Volume(resource_id)
@@ -468,6 +501,7 @@ class resources_tags:
                 tag_set_dict['TagSet'] = chosen_tags
                 log.debug("The chosen tags for {} are {}".format(resource_id, tag_set_dict))
                 try:
+                    selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
                     bucket_tagging = selected_resource_type.BucketTagging(resource_id)
                     resource_tag_list = bucket_tagging.put(
                         Tagging=tag_set_dict
