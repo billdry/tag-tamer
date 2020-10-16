@@ -57,7 +57,7 @@ class resources_tags:
                     filtered_resources = dict()
                     return filtered_resources
             
-            # Add any selected tag keys and values to the resource filter
+            # Add any selected tag keys and values to the AWS resource filter "filters_list"
             if self.filter_tags.get('conjunction') == 'AND':
                 if self.filter_tags.get('tag_key1'):
                     tag_dict = dict()
@@ -247,8 +247,9 @@ class resources_tags:
                 for resource in selected_resource_type.buckets.all():   
                     named_resource_inventory[resource.name] = resource.name
                 log.debug("The buckets list is: {}".format(named_resource_inventory)) 
-        ordered_inventory = OrderedDict()
+        
         # Sort the resources based on the resource's name
+        ordered_inventory = OrderedDict()
         ordered_inventory = sorted(named_resource_inventory.items(), key=lambda item: item[1])
         return ordered_inventory
             
