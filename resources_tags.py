@@ -312,29 +312,7 @@ class resources_tags:
             except:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
         elif self.unit == 'functions':
-            try:
-                client = boto3.client(self.resource_type, region_name=self.region)
-                my_functions = client.list_functions()
-                for item in my_functions['Functions']:
-                    resource_tags = {}
-                    sorted_resource_tags = {}
-                    function_arn = item['FunctionArn']
-                    try:
-                        response = client.list_tags(
-                            Resource=function_arn
-                        )
-                        for tag_key, tag_value in response['Tags'].items():       
-                            if not re.search("^aws:", tag_key):
-                                resource_tags[tag_key] = tag_value
-
-                    except botocore.exceptions.ClientError as error:
-                        log.error("Boto3 API returned error: {}".format(error))
-                        resource_tags["No Tags Found"] = "No Tags Found"
-                    sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
-                    tagged_resource_inventory[item['FunctionName']] = sorted_resource_tags
-            except botocore.exceptions.ClientError as error:
-                log.error("Boto3 API returned error: {}".format(error))
-                tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
+            pass
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
 
@@ -355,11 +333,11 @@ class resources_tags:
                             if not re.search("^aws:", tag["Key"]):
                                 sorted_tag_keys_inventory.append(tag["Key"])
                     except:
-                        sorted_tag_keys_inventory.append("No Tags Found")
+                        sorted_tag_keys_inventory.append("No tag keys found")
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error: {} {}"
                 log.error(errorString.format(self.unit, error))
-                sorted_tag_keys_inventory.append("No Tags Found")
+                sorted_tag_keys_inventory.append("No tag keys found")
         elif self.unit == 'volumes':
             try:
                 selected_resource_type = boto3.resource(self.resource_type, region_name=self.region)
