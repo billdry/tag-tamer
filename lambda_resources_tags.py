@@ -37,73 +37,75 @@ class lambda_resources_tags:
     # Returns a filtered list of all resource names & ID's for the resource type specified  
     def get_lambda_names_ids(self, filter_tags):
         self.filter_tags = filter_tags
+        tag_key1_state = True if self.filter_tags.get('tag_key1') else False
+        tag_value1_state = True if self.filter_tags.get('tag_value1') else False
+        tag_key2_state = True if self.filter_tags.get('tag_key2') else False
+        tag_value2_state = True if self.filter_tags.get('tag_value2') else False
         resource_inventory = dict()
+
+        def _intersection_or_invalid(tag_dict, function_name, function_arn):
+            resource_inventory['No matching resource'] = 'No matching resource'
         
         if self.filter_tags.get('conjunction') == 'AND':
             
-            def _and_tfff(tag_dict, function_name, function_arn):
+            def _intersection_tfff(tag_dict, function_name, function_arn):
                 if self.filter_tags.get('tag_key1') in tag_dict:
-                    resource_inventory[function_name] = function_arn
-                else:
-                    resource_inventory['No matching resource'] = 'No matching resource'
+                    resource_inventory[function_arn] = function_name
             
-            def _and_ttff(tag_dict, function_name, function_arn):
+            def _intersection_fftf(tag_dict, function_name, function_arn):
+                if self.filter_tags.get('tag_key2') in tag_dict:
+                    resource_inventory[function_arn] = function_name
+                     
+            def _intersection_fftt(tag_dict, function_name, function_arn):
+                if self.filter_tags.get('tag_key2') in tag_dict:
+                    if tag_dict.get(self.filter_tags.get('tag_key2')) == self.filter_tags.get('tag_value2'):
+                        resource_inventory[function_arn] = function_name             
+            
+            def _intersection_ttff(tag_dict, function_name, function_arn):
                 if self.filter_tags.get('tag_key1') in tag_dict:
-                    if tag_dict[self.filter_tags.get('tag_key1')] == self.filter_tags.get('tag_value1'):
-                        resource_inventory[function_name] = function_arn
-                    else:
-                        resource_inventory['No matching resource'] = 'No matching resource'
-                else:
-                    resource_inventory['No matching resource'] = 'No matching resource'
+                    if tag_dict.get(self.filter_tags.get('tag_key1')) == self.filter_tags.get('tag_value1'):
+                        resource_inventory[function_arn] = function_name                   
 
-            def _and_tftf(tag_dict, function_name, function_arn):
+            def _intersection_tftf(tag_dict, function_name, function_arn):
                 if self.filter_tags.get('tag_key1') and self.filter_tags.get('tag_key2') in tag_dict:
-                    resource_inventory[function_name] = function_arn
-                else:
-                    resource_inventory['No matching resource'] = 'No matching resource'
-            
-            def _and_tftt(tag_dict, function_name, function_arn):
+                    resource_inventory[function_arn] = function_name
+                         
+            def _intersection_tftt(tag_dict, function_name, function_arn):
                 if self.filter_tags.get('tag_key1') and self.filter_tags.get('tag_key2') in tag_dict:
-                    if tag_dict[self.filter_tags.get('tag_key2')] == self.filter_tags.get('tag_value2'):
-                        resource_inventory[function_name] = function_arn
-                    else:
-                        resource_inventory['No matching resource'] = 'No matching resource'
-                else:
-                    resource_inventory['No matching resource'] = 'No matching resource'
-            
-            def _and_tttf(tag_dict, function_name, function_arn):
+                    if tag_dict.get(self.filter_tags.get('tag_key2')) == self.filter_tags.get('tag_value2'):
+                        resource_inventory[function_arn] = function_name
+                            
+            def _intersection_tttf(tag_dict, function_name, function_arn):
                 if self.filter_tags.get('tag_key1') and self.filter_tags.get('tag_key2') in tag_dict:
-                    if tag_dict[self.filter_tags.get('tag_key1')] == self.filter_tags.get('tag_value1'):
-                        resource_inventory[function_name] = function_arn
-                    else:
-                        resource_inventory['No matching resource'] = 'No matching resource'
-                else:
-                    resource_inventory['No matching resource'] = 'No matching resource'
-            
-            def _and_tttt(tag_dict, function_name, function_arn):
+                    if tag_dict.get(self.filter_tags.get('tag_key1')) == self.filter_tags.get('tag_value1'):
+                        resource_inventory[function_arn] = function_name
+                         
+            def _intersection_tttt(tag_dict, function_name, function_arn):
                 if self.filter_tags.get('tag_key1') and self.filter_tags.get('tag_key2') in tag_dict:
-                    if tag_dict[self.filter_tags.get('tag_key1')] == self.filter_tags.get('tag_value1'):
-                        if tag_dict[self.filter_tags.get('tag_key2')] == self.filter_tags.get('tag_value2'):
-                            resource_inventory[function_name] = function_arn
-                        else:
-                            resource_inventory['No matching resource'] = 'No matching resource'
-                    else:
-                        resource_inventory['No matching resource'] = 'No matching resource'
-                else:
-                        resource_inventory['No matching resource'] = 'No matching resource'
+                    if tag_dict.get(self.filter_tags.get('tag_key1')) == self.filter_tags.get('tag_value1'):
+                        if tag_dict.get(self.filter_tags.get('tag_key2')) == self.filter_tags.get('tag_value2'):
+                            resource_inventory[function_arn] = function_name                   
 
-            def _and_ffff(tag_dict, function_name, function_arn):
-                resource_inventory[function_name] = function_arn
+            def _intersection_ffff(tag_dict, function_name, function_arn):
+                resource_inventory[function_arn] = function_name
 
             # "AND" Truth table check for tag_key1, tag_value1, tag_key2, tag_value2
-            and_valid_combos = {
-                (True, False, False, False): _and_tfff,
-                (True, True, False, False): _and_ttff,
-                (True, False, True, False): _and_tftf,
-                (True, False, True, True): _and_tftt,
-                (True, True, True, False): _and_tttf,
-                (True, True, True, True): _and_tttt,
-                (False, False, False, False): _and_ffff
+            intersection_combos = {
+                (False, False, False, True): _intersection_or_invalid,
+                (False, True, False, False): _intersection_or_invalid,
+                (False, True, False, True): _intersection_or_invalid,
+                (True, False, False, True): _intersection_or_invalid,
+                (True, True, False, True): _intersection_or_invalid,
+                (False, True, True, False): _intersection_or_invalid,
+                (False, False, True, False): _intersection_fftf,
+                (False, False, True, True): _intersection_fftt,
+                (True, False, False, False): _intersection_tfff,
+                (True, True, False, False): _intersection_ttff,
+                (True, False, True, False): _intersection_tftf,
+                (True, False, True, True): _intersection_tftt,
+                (True, True, True, False): _intersection_tttf,
+                (True, True, True, True): _intersection_tttt,
+                (False, False, False, False): _intersection_ffff
             }
                 
             try:
@@ -116,72 +118,74 @@ class lambda_resources_tags:
                         response = client.list_tags(
                             Resource=item['FunctionArn']
                         )
-                        if response.get('Tags'):
-                            and_valid_combos[(self.filter_tags.get('tag_key1'),
-                                self.filter_tags.get('tag_value1'),
-                                self.filter_tags.get('tag_key2'),
-                                self.filter_tags.get('tag_value2'))](response.get('Tags'), item['FunctionName'], item['FunctionArn'])
-                    
                     except botocore.exceptions.ClientError as error:
                             log.error("Boto3 API returned error: {}".format(error))
+                    intersection_combos[(tag_key1_state,
+                        tag_value1_state,
+                        tag_key2_state,
+                        tag_value2_state)](response.get('Tags'), item['FunctionName'], item['FunctionArn'])
             except botocore.exceptions.ClientError as error:
-                            log.error("Boto3 API returned error: {}".format(error))
+                log.error("Boto3 API returned error: {}".format(error))
+            
 
         if self.filter_tags.get('conjunction') == 'OR':
 
             def _or_tfff_tftf_fftf(tag_dict, function_name, function_arn):
                 if self.filter_tags.get('tag_key1') or self.filter_tags.get('tag_key2') in tag_dict:
-                    resource_inventory[function_name] = function_arn
+                    resource_inventory[function_arn] = function_name
                 else:
                     resource_inventory['No matching resource'] = 'No matching resource'
             
             def _or_tttf(tag_dict, function_name, function_arn):
                 if  self.filter_tags.get('tag_key1') in tag_dict:
                     if tag_dict[self.filter_tags.get('tag_key1')] == self.filter_tags.get('tag_value1'):
-                        resource_inventory[function_name] = function_arn
+                        resource_inventory[function_arn] = function_name
                 elif self.filter_tags.get('tag_key2') in tag_dict:
-                    resource_inventory[function_name] = function_arn
+                    resource_inventory[function_arn] = function_name
                 else:
                     resource_inventory['No matching resource'] = 'No matching resource'
 
             def _or_tftt(tag_dict, function_name, function_arn):
                 if  self.filter_tags.get('tag_key2') in tag_dict:
                     if tag_dict[self.filter_tags.get('tag_key2')] == self.filter_tags.get('tag_value2'):
-                        resource_inventory[function_name] = function_arn
+                        resource_inventory[function_arn] = function_name
                 elif self.filter_tags.get('tag_key1') in tag_dict:
-                    resource_inventory[function_name] = function_arn
+                    resource_inventory[function_arn] = function_name
                 else:
                     resource_inventory['No matching resource'] = 'No matching resource'
 
             def _or_fftt(tag_dict, function_name, function_arn):
                 if  self.filter_tags.get('tag_key2') in tag_dict:
                     if tag_dict[self.filter_tags.get('tag_key2')] == self.filter_tags.get('tag_value2'):
-                        resource_inventory[function_name] = function_arn
+                        resource_inventory[function_arn] = function_name
                 else:
                     resource_inventory['No matching resource'] = 'No matching resource'
             
             def _or_ttff(tag_dict, function_name, function_arn):
                 if  self.filter_tags.get('tag_key1') in tag_dict:
                     if tag_dict[self.filter_tags.get('tag_key1')] == self.filter_tags.get('tag_value1'):
-                        resource_inventory[function_name] = function_arn
+                        resource_inventory[function_arn] = function_name
                 else:
                     resource_inventory['No matching resource'] = 'No matching resource'
 
             def _or_tttt(tag_dict, function_name, function_arn):
                 if  self.filter_tags.get('tag_key1') in tag_dict:
                     if tag_dict[self.filter_tags.get('tag_key1')] == self.filter_tags.get('tag_value1'):
-                        resource_inventory[function_name] = function_arn
+                        resource_inventory[function_arn] = function_name
                 elif  self.filter_tags.get('tag_key2') in tag_dict:
                     if tag_dict[self.filter_tags.get('tag_key2')] == self.filter_tags.get('tag_value2'):
-                        resource_inventory[function_name] = function_arn
+                        resource_inventory[function_arn] = function_name
                 else:
                     resource_inventory['No matching resource'] = 'No matching resource'
             
             def _or_ffff(tag_dict, function_name, function_arn):
-                resource_inventory[function_name] = function_arn
+                resource_inventory[function_arn] = function_name
 
             # "OR" Truth table check for tag_key1, tag_value1, tag_key2, tag_value2
-            or_valid_combos = {
+            or_combos = {
+                (False, False, False, True): _intersection_or_invalid,
+                (False, True, False, False): _intersection_or_invalid,
+                (False, True, False, True): _intersection_or_invalid,
                 (False, False, True, False): _or_tfff_tftf_fftf,
                 (False, False, True, True): _or_fftt,
                 (True, False, False, False): _or_tfff_tftf_fftf,
@@ -204,10 +208,10 @@ class lambda_resources_tags:
                             Resource=item['FunctionArn']
                         )
                         if response.get('Tags'):
-                            or_valid_combos[(self.filter_tags.get('tag_key1'),
-                                self.filter_tags.get('tag_value1'),
-                                self.filter_tags.get('tag_key2'),
-                                self.filter_tags.get('tag_value2'))](response.get('Tags'), item['FunctionName'], item['FunctionArn'])
+                            or_combos[(tag_key1_state,
+                                tag_value1_state,
+                                tag_key2_state,
+                                tag_value2_state)](response.get('Tags'), item['FunctionName'], item['FunctionArn'])
                     
                     except botocore.exceptions.ClientError as error:
                             log.error("Boto3 API returned error: {}".format(error))
@@ -220,7 +224,7 @@ class lambda_resources_tags:
     # method - get_lambda_resources_tags
     # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
     # No input arguments
-    def get_lambda_resources_tags(self, **filter_tags):
+    def get_lambda_resources_tags(self):
         # Instantiate dictionaries to hold resources & their tags
         tagged_resource_inventory = dict()
         try:
@@ -318,5 +322,30 @@ class lambda_resources_tags:
             tag_values_inventory.append("No tag values found")
         return tag_values_inventory
 
-    def set_lambda_resources_tags(self):
-        pass
+    # method - set_lambda_resources_tags
+    # Setter method to update tags on user-selected resources 
+    # 2 inputs - list of resource Lambda arns to tag, list of individual tag key:value dictionaries
+    def set_lambda_resources_tags(self, resources_to_tag, chosen_tags):
+        resources_updated_tags = dict()
+        tag_dict = dict()
+        # for Lambda Boto3 API covert list of tags dicts to single key:value tag dict 
+        for tag in chosen_tags:
+            tag_dict[tag['Key']] = tag['Value']
+       
+        for resource_arn in resources_to_tag:
+            try:
+                client = boto3.client(self.resource_type, region_name=self.region)
+                try:
+                    response = client.tag_resource(
+                        Resource=resource_arn,
+                        Tags=tag_dict
+                    )
+                except botocore.exceptions.ClientError as error:
+                    log.error("Boto3 API returned error: {}".format(error))
+                    resources_updated_tags["No Resources Found"] = "No Tags Applied"
+            except botocore.exceptions.ClientError as error:
+                    log.error("Boto3 API returned error: {}".format(error))
+                    resources_updated_tags["No Resources Found"] = "No Tags Applied"
+        return resources_updated_tags
+
+        

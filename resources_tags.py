@@ -7,6 +7,8 @@
 import boto3, botocore
 # Import collections to use ordered dictionaries for storage
 from collections import OrderedDict
+# Import AWS Lambda resources & tags getters & setters
+from lambda_resources_tags import * 
 # Import logging module
 import logging
 # Import Python's regex module to filter Boto3's API responses 
@@ -32,9 +34,9 @@ class resources_tags:
     def get_resources(self, **filter_tags):
         
         self.filter_tags = dict()
-        if filter_tags.get('tag_key1') or filter_tags.get('tag_key2'):
-            self.filter_tags = filter_tags
-            log.debug("The received filter tags are: {}".format(self.filter_tags))
+        #if filter_tags.get('tag_key1') or filter_tags.get('tag_key2'):
+        self.filter_tags = filter_tags
+        log.debug("The received filter tags are: {}".format(self.filter_tags))
         
         client = boto3.client(self.resource_type, region_name=self.region)
 
@@ -247,6 +249,10 @@ class resources_tags:
                 for resource in selected_resource_type.buckets.all():   
                     named_resource_inventory[resource.name] = resource.name
                 log.debug("The buckets list is: {}".format(named_resource_inventory)) 
+
+        elif self.unit == "functions":
+            functions_inventory = lambda_resources_tags(self.resource_type, self.region)
+            named_resource_inventory = functions_inventory.get_lambda_names_ids(self.filter_tags)
         
         # Sort the resources based on the resource's name
         ordered_inventory = OrderedDict()
@@ -312,7 +318,8 @@ class resources_tags:
             except:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
         elif self.unit == 'functions':
-            pass
+            functions_inventory = lambda_resources_tags(self.resource_type, self.region)
+            tagged_resource_inventory = functions_inventory.get_lambda_resources_tags()
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
 
@@ -366,6 +373,9 @@ class resources_tags:
                 errorString = "Boto3 API returned error: {} {}"
                 log.error(errorString.format(self.unit, error))
                 sorted_tag_keys_inventory.append("No Tags Found")
+        elif self.unit == 'functions':
+            functions_inventory = lambda_resources_tags(self.resource_type, self.region)
+            sorted_tag_keys_inventory = functions_inventory.get_lambda_tag_keys()
 
         #Remove duplicate tags & sort
         sorted_tag_keys_inventory = list(set(sorted_tag_keys_inventory))
@@ -421,6 +431,9 @@ class resources_tags:
                 errorString = "Boto3 API returned error: {} {}"
                 log.error(errorString.format(self.unit, error))
                 sorted_tag_values_inventory.append("No Tags Found")
+        elif self.unit == 'functions':
+            functions_inventory = lambda_resources_tags(self.resource_type, self.region)
+            sorted_tag_values_inventory = functions_inventory.get_lambda_tag_values()
 
         #Remove duplicate tags & sort
         sorted_tag_values_inventory = list(set(sorted_tag_values_inventory))
@@ -491,5 +504,8 @@ class resources_tags:
                     errorString = "Boto3 API returned error: {} {}"
                     log.error(errorString.format(resource_id, error))
                     resources_updated_tags["No Resources Found"] = "No Tags Applied"
+        elif self.unit == 'functions':
+            functions_inventory = lambda_resources_tags(self.resource_type, self.region)
+            resources_updated_tags = functions_inventory.set_lambda_resources_tags(resources_to_tag, chosen_tags)
         
         return resources_updated_tags             
