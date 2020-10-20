@@ -20,7 +20,7 @@ __Step 1__ - Download the AWS CloudFormation template at the following link. It 
 
 https://github.com/billdry/tag-tamer/blob/master/installation%20procedures/tagtamer_private.yaml
 
-__Step 2__ - Deploy the CloudFormation Template downloaded in step 1 into your AWS account. You will need an EC2 Key Pair, am AMI ID such as amzn2-ami-hvm-x86_64-gp2, a VPC ID, Private Subnet, a source IP range for incoming management connections and an AWS SES validated email address.
+__Step 2__ - Deploy the CloudFormation Template downloaded in step 1 into your AWS account. You will need an EC2 Key Pair, an AMI ID such as amzn2-ami-hvm-x86_64-gp2, a VPC ID, Private Subnet, a source IP range for incoming management connections and an AWS SES validated email address.
 
 __Step 3__ - Verify the correct operation of the Tag Tamer Web App by browsing to https://<EC2Instance.PrivateDnsName>/sign-in The CloudFormation outputs list the exact sign-in URL you must use.
 
@@ -30,7 +30,7 @@ __Step 1__ - Download the AWS CloudFormation template at the following link. It 
 
 https://github.com/billdry/tag-tamer/blob/master/installation%20procedures/tagtamer_public.yaml
 
-__Step 2__ - Deploy the CloudFormation Template downloaded in step 1 into your AWS account. You will need an EC2 Key Pair, am AMI ID such as amzn2-ami-hvm-x86_64-gp2, an X.509 certificate, a source IP range for incoming management connections and an AWS SES validated email address.
+__Step 2__ - Deploy the CloudFormation Template downloaded in step 1 into your AWS account. You will need an EC2 Key Pair, an AMI ID such as amzn2-ami-hvm-x86_64-gp2, an X.509 certificate, a source IP range for incoming management connections and an AWS SES validated email address.
 
 __Step 3__ - Verify the correct operation of the Tag Tamer Web App by browsing to https://<EC2Instance.PublicDnsName>/sign-in The CloudFormation outputs list the exact sign-in URL you must use.
 
