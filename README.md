@@ -1,6 +1,6 @@
 # How to install the Tag Tamer solution
 
-Version - 4
+Version - 5
 
 Author: Bill Dry 
 
@@ -53,7 +53,7 @@ __Step 4__ - Verify the correct operation of the Tag Tamer Web App by browsing t
 
 ```
 openssl genrsa 2048 > my-aws-private.key
-openssl req -new -x509 -nodes -sha1 -days 3650 -extensions v3_ca -key my-aws-private.key > my-aws-public.crt
+openssl req -new -x509 -nodes -sha1 -days 398 -extensions v3_ca -key my-aws-private.key > my-aws-public.crt
 openssl pkcs12 -inkey my-aws-private.key -in my-aws-public.crt -export -out my-aws-public.p12
 aws acm import-certificate --certificate fileb://my-aws-public.crt --private-key fileb://my-aws-private.key
 ```
