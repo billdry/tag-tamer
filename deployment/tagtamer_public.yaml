@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: AWS Cloudformation template for TagTamer solution components - version - RC9
+Description: AWS Cloudformation template for TagTamer solution components - version - RC12
 
 Metadata: 
   AWS::CloudFormation::Interface: 
@@ -48,17 +48,17 @@ Parameters:
       Name of the certificate to use for ALB SSL connections.
       Example: arn:aws:acm-pca:region:account:certificate-authority/resource-identifier
     Type: String
-    Default: arn:aws:acm:region:accountid:certificate/certificateid
+#    Default: arn:aws:acm:region:accountid:certificate/certificateid
   Email:
     Type: String
     Description: Source email address for sending emails to new users.  Must be an SES validated address.
   TagTamerUserPoolName:
     Type: String
-    Default: tag-tamer-user-pool
+    Default: tag_tamer_user_pool
     Description: Name of Tag Tamer's Amazon Cognito User Pool used for user authentication
   TagTamerIdentityPoolName:
     Type: String
-    Default: tag-tamer-identity-pool
+    Default: tag_tamer_identity_pool
     Description: Name of Tag Tamer's Amazon Cognito Identity Pool
 
 Resources:
@@ -392,18 +392,18 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Sid: cognito-identity
+          - Sid: CognitoIdentity
             Action:
               - 'cognito-identity:GetId'
               - 'cognito-identity:GetCredentialsForIdentity'
             Effect: Allow
             Resource: '*'
-          - Sid: ssmparameters
+          - Sid: SSMParameters
             Action:
               - 'ssm:GetParametersByPath'
             Effect: Allow
             Resource: !Sub 'arn:aws:ssm:*:${AWS::AccountId}:parameter/*'
-          - Sid: cognito-user-pool
+          - Sid: CognitoUserPool
             Action:
               - 'cognito-idp:AdminListGroupsForUser'
             Effect: Allow
