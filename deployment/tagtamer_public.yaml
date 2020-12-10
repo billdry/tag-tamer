@@ -19,7 +19,7 @@ Metadata:
         Parameters: 
           - Email
           - TagTamerUserPoolName
-        - Label:
+      - Label:
           default: "Cognito Identity Pool configuration"
         Parameters: 
           - TagTamerIdentityPoolName
@@ -97,7 +97,7 @@ Resources:
   ElasticIPAddress:
     Type: AWS::EC2::EIP
     Properties:
-      Domain: VPC
+      Domain: vpc
       Tags:
       - Key: Name
         Value: Tagtamer-EIP
@@ -246,7 +246,7 @@ Resources:
           Ref: TagtamerTargetGroup
       LoadBalancerArn:
         Ref: PublicLoadBalancer
-      Port: '443'
+      Port: 443
       Protocol: HTTPS
 
 
@@ -292,8 +292,8 @@ Resources:
         - AttributeName: tag_group_name
           KeyType: HASH
       ProvisionedThroughput:
-        ReadCapacityUnits: '5'
-        WriteCapacityUnits: '5'
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
       TableName: tag_tamer_tag_groups
   TagTamerRolesTable:
     Type: 'AWS::DynamoDB::Table'
@@ -305,8 +305,8 @@ Resources:
         - AttributeName: role_arn
           KeyType: HASH
       ProvisionedThroughput:
-        ReadCapacityUnits: '5'
-        WriteCapacityUnits: '5'
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
       TableName: tag_tamer_roles
   TagTamerRole:
     Type: 'AWS::IAM::Role'
@@ -318,12 +318,15 @@ Resources:
             Principal:
               Service:
                 - ec2.amazonaws.com
-                - s3.amazonaws.com
-                - dynamodb.amazonaws.com
-                - cloudformation.amazonaws.com
+              #  - s3.amazonaws.com
+              #  - dynamodb.amazonaws.com
+              #  - cloudformation.amazonaws.com
             Action:
               - 'sts:AssumeRole'
       RoleName: TagTamerRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
   TagTamerInstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -367,7 +370,7 @@ Resources:
             #!/bin/bash -xe
             cd /var/tmp
             yum -y install git
-            git clone https://github.com/billdry/tag-tamer-deployment-test.git
+            git clone https://github.com/billdry/tag-tamer.git
             cd tagtamer/source
             bash tagtamer-install.sh
       Tags:
@@ -628,7 +631,7 @@ Resources:
     Properties:
       Name: /tag-tamer/jwt-cookie-secure
       Type: String
-      Value: False
+      Value: 'True'
 
   TagTamerJwtAccessCookieName:
     Type: AWS::SSM::Parameter
@@ -642,7 +645,14 @@ Resources:
     Properties:
       Name: /tag-tamer/jwt-cookie-csrf-protect
       Type: String
-      Value: False
+      Value: 'True'
+    
+  TagTamerCognitoIdentityPoolId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/cognito-identity-pool-id-value
+      Type: String
+      Value: !Ref TagTamerCognitoIdentityPool
 
   UserPoolClientRole:
   # Created to execute Lambda which gets userpool app client config values
@@ -692,7 +702,7 @@ Resources:
             - '};'
       Handler: index.handler
       Runtime: nodejs10.x
-      Timeout: '300'
+      Timeout: 300
       Role: !GetAtt 
         - UserPoolClientRole
         - Arn
@@ -747,8 +757,15 @@ Resources:
       clientId: !Ref TagTamerUserPoolClient
       userpoolId: !Ref TagTamerCognitoUserPool
     DependsOn: UserPoolClientLogPolicy
-TagTamerIdentityPool:
-  Type: AWS::Cognito::IdentityPool
+  
+  TagTamerCognitoIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId: !Ref TagTamerUserPoolClient
+          ProviderName: !GetAtt TagTamerCognitoUserPool.ProviderName
+      IdentityPoolName: !Ref TagTamerIdentityPoolName
 
 Outputs:
   InstanceId:
