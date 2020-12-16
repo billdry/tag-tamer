@@ -371,7 +371,7 @@ Resources:
             cd /var/tmp
             yum -y install git
             git clone https://github.com/billdry/tag-tamer.git
-            cd tagtamer/source
+            cd tag-tamer/source
             bash tagtamer-install.sh
       Tags:
         - Key: Name

@@ -9,11 +9,11 @@ amazon-linux-extras install nginx1 -y
 mkdir -p /home/ec2-user/tag-tamer/prod
 chown -R ec2-user:ec2-user /home/ec2-user/tag-tamer
 #pip3 install boto3 botocore flask flask-WTF gunicorn Flask_jwt_Extended flask_login
-#pip3 install /var/tmp/tagtamer/source/Flask-AWSCognito
-su - ec2-user -c "python3 -m venv /home/ec2-user/tag-tamer/prod;source /home/ec2-user/tag-tamer/prod/bin/activate; pip3 install boto3 botocore flask flask-WTF gunicorn Flask_jwt_Extended flask_login /var/tmp/tagtamer/source/Flask-AWSCognito; deactivate"
+#pip3 install /var/tmp/tag-tamer/source/Flask-AWSCognito
+su - ec2-user -c "python3 -m venv /home/ec2-user/tag-tamer/prod;source /home/ec2-user/tag-tamer/prod/bin/activate; pip3 install boto3 botocore flask flask-WTF gunicorn /var/tmp/tag-tamer/source/Flask-AWSCognito; deactivate"
 
 # Copy code and config
-cd /var/tmp/tagtamer/source
+cd /var/tmp/tag-tamer/source
 cp config/tag-tamer.conf /etc/nginx/conf.d
 cp config/proxy_params /etc/nginx
 cp config/ssl-redirect.conf  /etc/nginx/default.d/
@@ -37,9 +37,9 @@ sed -i  "s/192.168.10.80/`hostname -i`/g" /etc/nginx/conf.d/tag-tamer.conf
 
 # SSL certificate creation
 mkdir -p /etc/pki/nginx/private 
-openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /etc/pki/nginx/private/nginx-selfsigned.key -out /etc/pki/nginx/nginx-selfsigned.crt -subj "/C=US/ST=NC/L=Raleigh/O=AWS/OU=TAM/CN=tagtamer.amazon.com"
+openssl req -x509 -nodes -days 398 -newkey rsa:2048 -keyout /etc/pki/nginx/private/nginx-selfsigned.key -out /etc/pki/nginx/nginx-selfsigned.crt -subj "/C=US/ST=NC/L=Raleigh/O=AWS/OU=TAM/CN=tagtamer.amazon.com"
 openssl dhparam -out /etc/pki/nginx/dhparam.pem 2048
 
 # Enable and start services
-systemctl  enable tagtamer.service; systemctl  start tagtamer.service
+systemctl enable tag-tamer.service; systemctl start tag-tamer.service
 systemctl enable nginx; systemctl start nginx
