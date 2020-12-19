@@ -8,6 +8,7 @@
 from admin import execution_status
 # Import AWS module for python
 import boto3, botocore
+from botocore import exceptions
 # Import collections to use ordered dictionaries for storage
 from collections import OrderedDict
 # Import AWS Lambda resources & tags getters & setters
@@ -257,6 +258,7 @@ class resources_tags:
                         my_status.error()
 
         elif self.unit == 'buckets':
+            selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
             if self.filter_tags.get('tag_key1') or self.filter_tags.get('tag_key2'):
                 for resource in selected_resource_type.buckets.all(): 
                     log.debug("This bucket name is: {}".format(resource))
@@ -292,7 +294,6 @@ class resources_tags:
                                     if tag.get('Key') == self.filter_tags.get('tag_key2'):
                                         named_resource_inventory[resource.name] = resource.name
             else:
-                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                 try:
                     for resource in selected_resource_type.buckets.all():   
                         named_resource_inventory[resource.name] = resource.name
@@ -490,9 +491,9 @@ class resources_tags:
                         for tag in selected_resource_type.BucketTagging(item.name).tag_set:
                             if not re.search("^aws:", tag["Key"]):
                                 sorted_tag_keys_inventory.append(tag["Key"])
-                        my_status.success(message='Resources and tags found!')
                     except:
                         sorted_tag_keys_inventory.append("No Tags Found")
+                my_status.success(message='Resources and tags found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
