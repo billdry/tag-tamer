@@ -149,17 +149,15 @@ def aws_cognito_redirect():
 def index():
     claims = aws_auth.claims
     # Get the user's assigned Cognito user pool group
-    print("The claims are: ", claims)
-    print("The request headers are: ", request.headers)
-    print("The raw request data is: ", request.data)
     cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
         ssm_parameters['cognito-user-pool-id-value'],
         ssm_parameters['cognito-default-region-value'])
     # Grant access if session time not expired & user assigned to Cognito user pool group
     if time() < claims.get('exp') and cognito_user_group_arn:
-        log.info("User \"{}\" signed in on {}".format(claims.get('username'), date_time_now()))
+        log.info("Successful login.  User \"{}\" signed in on {}".format(claims.get('username'), date_time_now()))
         return render_template('index.html', user_name=claims.get('username'))
     else:
+        log.info("Failed login attempt.  User \"{}\" tried to sign in on {}".format(claims.get('username'), date_time_now()))
         return redirect('/sign-in')
 
 # Get response delivers Tag Tamer actions page showing user choices as clickable buttons
@@ -589,7 +587,7 @@ def set_roles_tags():
 @aws_auth.authentication_required
 def logout():
     claims = aws_auth.claims
-    log.info("User \"{}\" signed out on {}".format(claims.get('username'), date_time_now()))
+    log.info("Successful logout.  User \"{}\" signed out on {}".format(claims.get('username'), date_time_now()))
     response = make_response(render_template('logout.html'))
     response.delete_cookie('access_token')
     response.delete_cookie('id_token')
