@@ -78,8 +78,8 @@ Resources:
         - AttributeName: role_arn
           KeyType: HASH
       ProvisionedThroughput:
-        ReadCapacityUnits: '5'
-        WriteCapacityUnits: '5'
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
       TableName: tag_tamer_roles
   TagTamerRole:
     Type: 'AWS::IAM::Role'
@@ -131,6 +131,13 @@ Resources:
       SecurityGroupIds:
         - !GetAtt "InstanceSecurityGroup.GroupId"
       ImageId: !Ref AMIID
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 8
+            DeleteOnTermination: true
+            Encrypted: true
       KeyName: !Ref KeyName
       SubnetId: !Ref PrivateSubnet
       IamInstanceProfile: !Ref TagTamerInstanceProfile
