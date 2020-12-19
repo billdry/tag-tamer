@@ -10,6 +10,7 @@ from admin import execution_status
 # Import AWS module for python
 import boto3
 import botocore
+from botocore import exceptions
 # Import Collections module to manipulate dictionaries
 import collections
 from collections import defaultdict

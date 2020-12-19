@@ -17,6 +17,7 @@
 from admin import execution_status
 # Import AWS module for python
 import boto3, botocore
+from botocore import exceptions
 # Import collections to use ordered dictionaries for storage
 from collections import OrderedDict
 # Import logging module

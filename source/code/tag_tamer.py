@@ -52,6 +52,8 @@ import logging
 import re
 #import OS module
 import os
+#import systems library
+import sys
 #import epoch time method
 from time import time
 
@@ -75,8 +77,8 @@ logging.getLogger('flask_wtf.csrf').setLevel('WARNING')
 logging.getLogger('werkzeug').setLevel('ERROR')
 
 # Get user-specified AWS regions
-selected_regions = tag_tamer_parameters['parameters']['selected_regions']
-region = selected_regions[0]
+selected_region = tag_tamer_parameters['parameters']['selected_region']
+region = selected_region
 log.debug('The selected AWS region is: \"%s\"', region)
 
 # Get AWS Service parameters from AWS SSM Parameter Store
@@ -90,7 +92,7 @@ ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters['paramete
 
 # Instantiate flask API applications
 app = Flask(__name__)
-app.secret_key = os.urandom(12)
+app.secret_key = os.urandom(16)
 app.config['AWS_DEFAULT_REGION'] = ssm_parameters['cognito-default-region-value']
 app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters['cognito-domain-value']
 app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters['cognito-user-pool-id-value']
@@ -128,12 +130,12 @@ def sign_in():
 def aws_cognito_redirect():
     access_token = False
     id_token = False
-    log.debug('The request arguments are %s', request.args)
     access_token, id_token = aws_auth.get_tokens(request.args)
-    if access_token and id_token:    
+    if access_token and id_token:  
         response = make_response(render_template('redirect.html'))
-        response.set_cookie('access_token', value=access_token, secure=True, httponly=True)
-        response.set_cookie('id_token', value=id_token, secure=True, httponly=True)
+        log.debug('function: {} - Received the request arguments'.format(sys._getframe().f_code.co_name))
+        response.set_cookie('access_token', value=access_token, secure=True, httponly=True, samesite='Lax')
+        response.set_cookie('id_token', value=id_token, secure=True, httponly=True, samesite='Lax')
         return response, 200
     else:
         return redirect(url_for('sign_in'))
@@ -147,6 +149,9 @@ def aws_cognito_redirect():
 def index():
     claims = aws_auth.claims
     # Get the user's assigned Cognito user pool group
+    print("The claims are: ", claims)
+    print("The request headers are: ", request.headers)
+    print("The raw request data is: ", request.data)
     cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
         ssm_parameters['cognito-user-pool-id-value'],
         ssm_parameters['cognito-default-region-value'])
@@ -175,9 +180,7 @@ def find_tags():
 @aws_auth.authentication_required
 def found_tags():
     resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-    #claims = aws_auth.claims
-    #log.debug('The claims in the received JWT are: %s', claims)
-    log.debug('The received cookies are: %s', request.cookies.items())
+    log.debug('function: {} - Received the request arguments'.format(sys._getframe().f_code.co_name))
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     inventory = resources_tags(resource_type, unit, region)
     sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)

@@ -5,7 +5,8 @@
 # Tag Tamer's role-based tagger run by AWS Lambda
 
 # Import AWS modules for python
-import boto3
+import boto3, botocore
+from botocore import exceptions
 from boto3.dynamodb.conditions import Key, Attr
 # Import JSON
 import json

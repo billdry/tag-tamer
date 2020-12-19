@@ -8,6 +8,7 @@
 from admin import execution_status
 # Import AWS modules for python
 import botocore
+from botocore import exceptions
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 # Import logging module

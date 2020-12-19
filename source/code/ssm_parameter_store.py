@@ -6,6 +6,7 @@
 
 # Import AWS module for python
 import botocore
+from botocore import exceptions
 import boto3
 # Import JSON
 import json
