@@ -35,7 +35,7 @@ from ssm_parameter_store import ssm_parameter_store
 # Import AWS STS functions
 #from sts import get_session_credentials
 # Import Tag Tamer utility functions
-from utilities import *
+from utilities import get_resource_type_unit, verify_jwt
 
 # Import flask framework module & classes to build API's
 import flask, flask_wtf
@@ -119,6 +119,36 @@ def get_user_session_credentials(cognito_id_token):
         ssm_parameters['cognito-default-region-value'])
     return user_session_credentials
 
+# Verify user's email & source IP address
+def get_user_email_ip(route):
+    access_token = False
+    id_token = False
+    access_token = request.cookies.get('access_token')
+    id_token = request.cookies.get('id_token')
+    
+    if access_token and id_token:
+        id_token_claims = dict()
+        id_token_claims = verify_jwt(ssm_parameters['cognito-default-region-value'],
+            ssm_parameters['cognito-user-pool-id-value'],
+            ssm_parameters['cognito-app-client-id'],
+            'id_token', id_token)
+        if id_token_claims.get('email'):
+            user_email = id_token_claims.get('email')
+        else:
+            user_email = False
+    else:
+        user_email = False
+
+    if request.headers.get('X-Forwarded-For'):
+        source = request.headers.get('X-Forwarded-For')
+    elif request.remote_addr:
+        source = request.remote_addr
+    else:
+        source = False
+    
+    return user_email, source
+
+
 # Allow users to sign into Tag Tamer via an Amazon Cognito User Pool
 @app.route('/log-in')
 @app.route('/sign-in')
@@ -148,16 +178,19 @@ def aws_cognito_redirect():
 @aws_auth.authentication_required
 def index():
     claims = aws_auth.claims
+
+    user_email, user_source = get_user_email_ip(request)
+    
     # Get the user's assigned Cognito user pool group
     cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
         ssm_parameters['cognito-user-pool-id-value'],
         ssm_parameters['cognito-default-region-value'])
     # Grant access if session time not expired & user assigned to Cognito user pool group
-    if time() < claims.get('exp') and cognito_user_group_arn:
-        log.info("Successful login.  User \"{}\" signed in on {}".format(claims.get('username'), date_time_now()))
+    if time() < claims.get('exp') and user_email and user_source and cognito_user_group_arn:
+        log.info("Successful login.  User \"{}\" with email: \"{}\" signed in on {} from location: \"{}\"".format(claims.get('username'), user_email, date_time_now(), user_source))
         return render_template('index.html', user_name=claims.get('username'))
     else:
-        log.info("Failed login attempt.  User \"{}\" tried to sign in on {}".format(claims.get('username'), date_time_now()))
+        log.info("Failed login attempt.  User \"{}\" with email: \"{}\" attempted to sign in on {} from location: \"{}\"".format(claims.get('username'), user_email, date_time_now(), user_source))
         return redirect('/sign-in')
 
 # Get response delivers Tag Tamer actions page showing user choices as clickable buttons
@@ -171,21 +204,39 @@ def actions():
 @app.route('/find-tags', methods=['GET'])
 @aws_auth.authentication_required
 def find_tags():
-    return render_template('find-tags.html')    
+    user_email = False
+    user_source = False 
+    user_email, user_source = get_user_email_ip(request)
+    if user_email:
+        log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source))
+        return render_template('find-tags.html')
+    else:
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
+        return render_template('blank.html')
 
 # Pass Get response to found-tags HTML UI
 @app.route('/found-tags', methods=['POST'])
 @aws_auth.authentication_required
 def found_tags():
-    resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-    log.debug('function: {} - Received the request arguments'.format(sys._getframe().f_code.co_name))
+    user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    inventory = resources_tags(resource_type, unit, region)
-    sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
-    flash(execution_status['status_message'], execution_status['alert_level'])
-    if execution_status.get('alert_level') == 'success':
-        return render_template('found-tags.html', inventory=sorted_tagged_inventory)
+    if user_email and session_credentials.get('AccessKeyId'):
+        resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+        log.debug('function: {} - Received the request arguments'.format(sys._getframe().f_code.co_name))
+        inventory = resources_tags(resource_type, unit, region)
+        sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
+        flash(execution_status['status_message'], execution_status['alert_level'])
+        if execution_status.get('alert_level') == 'success':
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            return render_template('found-tags.html', inventory=sorted_tagged_inventory)
+        else:
+            log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash('You are not authorized to view these resources', 'danger')
+            return render_template('blank.html')
     else:
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
 
 # Delivers HTML UI to select AWS resource types to manage Tag Groups for
