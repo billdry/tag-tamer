@@ -204,8 +204,6 @@ def actions():
 @app.route('/find-tags', methods=['GET'])
 @aws_auth.authentication_required
 def find_tags():
-    user_email = False
-    user_source = False 
     user_email, user_source = get_user_email_ip(request)
     if user_email:
         log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source))
@@ -243,402 +241,530 @@ def found_tags():
 @app.route('/type-to-tag-group', methods=['GET'])
 @aws_auth.authentication_required
 def type_to_tag_group():
-    return render_template('type-to-tag-group.html') 
+    user_email, user_source = get_user_email_ip(request)
+    if user_email:
+        log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source))
+        return render_template('type-to-tag-group.html')
+    else:
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
+        return render_template('blank.html')
 
 # Post response to get tag groups attributes UI
 @app.route('/get-tag-group-names', methods=['POST'])
 @aws_auth.authentication_required
 def get_tag_group_names():
+    user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    all_tag_groups = get_tag_groups(region, **session_credentials)
-    tag_group_names, execution_status = all_tag_groups.get_tag_group_names()
-    flash(execution_status['status_message'], execution_status['alert_level'])
-    if execution_status.get('alert_level') == 'success':
-        resource_type, _ = get_resource_type_unit(request.form.get('resource_type'))
-        return render_template('display-tag-groups.html',
-            inventory=tag_group_names, resource_type=resource_type)
+    if user_email and session_credentials.get('AccessKeyId'):
+        all_tag_groups = get_tag_groups(region, **session_credentials)
+        tag_group_names, execution_status = all_tag_groups.get_tag_group_names()
+        flash(execution_status['status_message'], execution_status['alert_level'])
+        if execution_status.get('alert_level') == 'success':
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            resource_type, _ = get_resource_type_unit(request.form.get('resource_type'))
+            return render_template('display-tag-groups.html',
+                inventory=tag_group_names, resource_type=resource_type)
+        else:
+            log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash('You are not authorized to view these resources', 'danger')
+            return render_template('blank.html')
     else:
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
 
 # Post method to display edit UI for chosen tag group
 @app.route('/edit-tag-group', methods=['POST'])
 @aws_auth.authentication_required
 def edit_tag_group():
-    resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+    user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    inventory = resources_tags(resource_type, unit, region)
-    sorted_tag_values_inventory, execution_status = inventory.get_tag_values(**session_credentials) 
-    if execution_status.get('alert_level') == 'success':
-        # If user does not select an existing Tag Group or enter 
-        # a new Tag Group name reload this route until valid user input given
-        if request.form.get('tag_group_name'):    
-            selected_tag_group_name = request.form.get('tag_group_name')
-            tag_group = get_tag_groups(region, **session_credentials)
-            tag_group_key_values, execution_status = tag_group.get_tag_group_key_values(selected_tag_group_name)
-            if execution_status.get('alert_level') == 'success':
+    if user_email and session_credentials.get('AccessKeyId'):
+        resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+        inventory = resources_tags(resource_type, unit, region)
+        sorted_tag_values_inventory, execution_status = inventory.get_tag_values(**session_credentials) 
+        if execution_status.get('alert_level') == 'success':
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            # If user does not select an existing Tag Group or enter 
+            # a new Tag Group name reload this route until valid user input given
+            if request.form.get('tag_group_name'):    
+                selected_tag_group_name = request.form.get('tag_group_name')
+                tag_group = get_tag_groups(region, **session_credentials)
+                tag_group_key_values, execution_status = tag_group.get_tag_group_key_values(selected_tag_group_name)
+                if execution_status.get('alert_level') == 'success':
+                    return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+                else:
+                    flash(execution_status['status_message'], execution_status['alert_level'])
+                    return render_template('blank.html')
+            elif request.form.get('new_tag_group_name') and re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')):
+                selected_tag_group_name = request.form.get('new_tag_group_name')
+                tag_group_key_values = {}
                 return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
             else:
-                flash(execution_status['status_message'], execution_status['alert_level'])
-                return render_template('blank.html')
-        elif request.form.get('new_tag_group_name') and re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')):
-            selected_tag_group_name = request.form.get('new_tag_group_name')
-            tag_group_key_values = {}
-            return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+                return render_template('type-to-tag-group.html')
         else:
-            return render_template('type-to-tag-group.html')
+            log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash(execution_status['status_message'], execution_status['alert_level'])
+            return render_template('blank.html')
     else:
-        flash(execution_status['status_message'], execution_status['alert_level'])
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
 
 # Post method to add or update a tag group
 @app.route('/add-update-tag-group', methods=['POST'])
 @aws_auth.authentication_required
 def add_update_tag_group():
-    if request.form.get('new_tag_group_name') and \
-        re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')) and \
-        request.form.get('new_tag_group_key_name') and \
-        re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_key_name')):
-        tag_group_name = request.form.get('new_tag_group_name')
-        tag_group_key_name = request.form.get('new_tag_group_key_name')
-        tag_group_action = "create"
-    elif request.form.get('selected_tag_group_name') and \
-        re.search("^\w[\w\- ]{0,125}\w$", request.form.get('selected_tag_group_name')) and \
-        request.form.get('selected_tag_group_key_name') and \
-        re.search("^\w[\w\- ]{0,125}\w$", request.form.get('selected_tag_group_key_name')):
-        tag_group_name = request.form.get('selected_tag_group_name')
-        tag_group_key_name = request.form.get('selected_tag_group_key_name')
-        tag_group_action = "update"
-    else:
-        return render_template('type-to-tag-group.html')
-
-    tag_group_value_options = []
-    form_contents = request.form.to_dict()
-    for key, value in form_contents.items():
-        if value == "checked" and re.search("^\w[\w\- ]{0,223}\w$", key):
-            tag_group_value_options.append(key)
-    if request.form.get("new_tag_group_values"):
-        approved_new_tag_group_values = list()
-        new_tag_group_values = request.form.get("new_tag_group_values").split(",")
-        for value in new_tag_group_values:
-            core_value = value.strip(" ")
-            if re.search("^\w[\w\- ]{0,223}\w$", core_value):
-                approved_new_tag_group_values.append(core_value)
-        tag_group_value_options.extend(approved_new_tag_group_values)
-
+    user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    tag_group = set_tag_group(region, **session_credentials)
-    if tag_group_action == "create":
-        execution_status = tag_group.create_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
-    else:
-        execution_status = tag_group.update_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
-    if execution_status.get('alert_level') == 'success':
-        tag_groups = get_tag_groups(region, **session_credentials)
-        tag_group_key_values, execution_status = tag_groups.get_tag_group_key_values(tag_group_name)
-        if execution_status.get('alert_level') == 'success':
-            resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-            inventory = resources_tags(resource_type, unit, region)
-            sorted_tag_values_inventory, sorted_tag_values_execution_status = inventory.get_tag_values(**session_credentials)
-            return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+    if user_email and session_credentials.get('AccessKeyId'):
+        if request.form.get('new_tag_group_name') and \
+            re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')) and \
+            request.form.get('new_tag_group_key_name') and \
+            re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_key_name')):
+            tag_group_name = request.form.get('new_tag_group_name')
+            tag_group_key_name = request.form.get('new_tag_group_key_name')
+            tag_group_action = "create"
+        elif request.form.get('selected_tag_group_name') and \
+            re.search("^\w[\w\- ]{0,125}\w$", request.form.get('selected_tag_group_name')) and \
+            request.form.get('selected_tag_group_key_name') and \
+            re.search("^\w[\w\- ]{0,125}\w$", request.form.get('selected_tag_group_key_name')):
+            tag_group_name = request.form.get('selected_tag_group_name')
+            tag_group_key_name = request.form.get('selected_tag_group_key_name')
+            tag_group_action = "update"
         else:
+            return render_template('type-to-tag-group.html')
+
+        tag_group_value_options = []
+        form_contents = request.form.to_dict()
+        for key, value in form_contents.items():
+            if value == "checked" and re.search("^\w[\w\- ]{0,223}\w$", key):
+                tag_group_value_options.append(key)
+        if request.form.get("new_tag_group_values"):
+            approved_new_tag_group_values = list()
+            new_tag_group_values = request.form.get("new_tag_group_values").split(",")
+            for value in new_tag_group_values:
+                core_value = value.strip(" ")
+                if re.search("^\w[\w\- ]{0,223}\w$", core_value):
+                    approved_new_tag_group_values.append(core_value)
+            tag_group_value_options.extend(approved_new_tag_group_values)
+
+        tag_group = set_tag_group(region, **session_credentials)
+        if tag_group_action == "create":
+            execution_status = tag_group.create_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
+        else:
+            execution_status = tag_group.update_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
+        if execution_status.get('alert_level') == 'success':
+            tag_groups = get_tag_groups(region, **session_credentials)
+            tag_group_key_values, execution_status = tag_groups.get_tag_group_key_values(tag_group_name)
+            if execution_status.get('alert_level') == 'success':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+                inventory = resources_tags(resource_type, unit, region)
+                sorted_tag_values_inventory, sorted_tag_values_execution_status = inventory.get_tag_values(**session_credentials)
+                return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+            else:
+                log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash(execution_status['status_message'], execution_status['alert_level'])
+                return render_template('blank.html')
+        else:
+            log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
             flash(execution_status['status_message'], execution_status['alert_level'])
             return render_template('blank.html')
-    else:
-        flash(execution_status['status_message'], execution_status['alert_level'])
-        return render_template('blank.html')
 
 # Delivers HTML UI to select AWS resource type to tag using Tag Groups
 @app.route('/select-resource-type', methods=['POST'])
 @aws_auth.authentication_required
 def select_resource_type():
-    next_route  = request.form.get('next_route')
-    if not next_route:
-        next_route = 'tag_resources'
-    return render_template('select-resource-type.html', destination_route=next_route) 
+    user_email, user_source = get_user_email_ip(request)
+    if user_email:
+        log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source))
+        next_route  = request.form.get('next_route')
+        if not next_route:
+            next_route = 'tag_resources'
+        return render_template('select-resource-type.html', destination_route=next_route)
+    else:
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
+        return render_template('blank.html') 
 
 # Let user search existing tags then tag matching, existing resources 
 @app.route('/tag-filter', methods=['POST'])
 @aws_auth.authentication_required
 def tag_filter():
-    if request.form.get('resource_type'):
-        return render_template('search-tag-resources-container.html', resource_type=request.form.get('resource_type')) 
+    user_email, user_source = get_user_email_ip(request)
+    if user_email:
+        log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source)) 
+        if request.form.get('resource_type'):
+            return render_template('search-tag-resources-container.html', resource_type=request.form.get('resource_type')) 
+        else:
+            return render_template('select-resource-type.html', destination_route='tag_filter')
     else:
-        return render_template('select-resource-type.html', destination_route='tag_filter')
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
+        return render_template('blank.html')
 
 # Enter existing tag keys & values to search 
 @app.route('/tag-based-search', methods=['GET'])
 @aws_auth.authentication_required
 def tag_based_search():
-    if request.args.get('resource_type'):
-        resource_type, unit = get_resource_type_unit(request.args.get('resource_type'))
-        session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-        inventory = resources_tags(resource_type, unit, region)
-        selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**session_credentials)
-        selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**session_credentials)
-        if execution_status_tag_keys.get('alert_level') == 'success' and execution_status_tag_values.get('alert_level') == 'success':
-            return render_template('tag-search.html', 
-                    resource_type=request.args.get('resource_type'),
-                    tag_keys=selected_tag_keys, 
-                    tag_values=selected_tag_values)
+    user_email, user_source = get_user_email_ip(request)
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
+    if user_email and session_credentials.get('AccessKeyId'):
+        if request.args.get('resource_type'):
+            resource_type, unit = get_resource_type_unit(request.args.get('resource_type'))
+            inventory = resources_tags(resource_type, unit, region)
+            selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**session_credentials)
+            selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**session_credentials)
+            if execution_status_tag_keys.get('alert_level') == 'success' and execution_status_tag_values.get('alert_level') == 'success':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                return render_template('tag-search.html', 
+                        resource_type=request.args.get('resource_type'),
+                        tag_keys=selected_tag_keys, 
+                        tag_values=selected_tag_values)
+            else:
+                log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash(execution_status_tag_keys['status_message'], execution_status_tag_keys['alert_level'])
+                return render_template('blank.html')
         else:
-            flash(execution_status_tag_keys['status_message'], execution_status_tag_keys['alert_level'])
-            return render_template('blank.html')
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            return render_template('select-resource-type.html', destination_route='tag_filter')
     else:
-        return render_template('select-resource-type.html', destination_route='tag_filter')
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
+        return render_template('blank.html')
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
 @app.route('/tag_resources', methods=['GET','POST'])
 @aws_auth.authentication_required
 def tag_resources():
-    #if request.form.get('tag_key1') or request.form.get('tag_key2'):
-    if request.form.get('resource_type'):
-        filter_elements = dict()
-        if request.form.get('tag_key1'):
-            filter_elements['tag_key1'] = request.form.get('tag_key1')
-        if request.form.get('tag_value1'):
-            filter_elements['tag_value1'] = request.form.get('tag_value1')
-        if request.form.get('tag_key2'):
-            filter_elements['tag_key2'] = request.form.get('tag_key2')
-        if request.form.get('tag_value2'):
-            filter_elements['tag_value2'] = request.form.get('tag_value2')
-        if request.form.get('conjunction'):
-            filter_elements['conjunction'] = request.form.get('conjunction')
-        
-        resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-        session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-        chosen_resource_inventory = resources_tags(resource_type, unit, region)
-        chosen_resources = OrderedDict()
-        chosen_resources, resources_execution_status = chosen_resource_inventory.get_resources(filter_elements, **session_credentials)
-        
-        tag_group_inventory = get_tag_groups(region, **session_credentials)
-        tag_groups_all_info, tag_groups_execution_status = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
-        if resources_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
-            return render_template('tag-resources.html', resource_type=resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
+    user_email, user_source = get_user_email_ip(request)
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
+    if user_email and session_credentials.get('AccessKeyId'):
+        if request.form.get('resource_type'):
+            filter_elements = dict()
+            if request.form.get('tag_key1'):
+                filter_elements['tag_key1'] = request.form.get('tag_key1')
+            if request.form.get('tag_value1'):
+                filter_elements['tag_value1'] = request.form.get('tag_value1')
+            if request.form.get('tag_key2'):
+                filter_elements['tag_key2'] = request.form.get('tag_key2')
+            if request.form.get('tag_value2'):
+                filter_elements['tag_value2'] = request.form.get('tag_value2')
+            if request.form.get('conjunction'):
+                filter_elements['conjunction'] = request.form.get('conjunction')
+            
+            resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+            chosen_resource_inventory = resources_tags(resource_type, unit, region)
+            chosen_resources = OrderedDict()
+            chosen_resources, resources_execution_status = chosen_resource_inventory.get_resources(filter_elements, **session_credentials)
+            
+            tag_group_inventory = get_tag_groups(region, **session_credentials)
+            tag_groups_all_info, tag_groups_execution_status = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
+            if resources_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                return render_template('tag-resources.html', resource_type=resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
+            else:
+                log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash('You are not authorized to modify these resources', 'danger')
+                return render_template('blank.html')
         else:
-            flash('You are not authorized to modify these resources', 'danger')
+            log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
             return render_template('blank.html')
     else:
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
 
 # Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
 @app.route('/apply-tags-to-resources', methods=['POST'])
 @aws_auth.authentication_required
 def apply_tags_to_resources():
-    if request.form.getlist('resources_to_tag'):
-        resources_to_tag = []
-        resources_to_tag = request.form.getlist('resources_to_tag')
+    user_email, user_source = get_user_email_ip(request)
+    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
+    if user_email and session_credentials.get('AccessKeyId'):
+        if request.form.getlist('resources_to_tag'):
+            resources_to_tag = []
+            resources_to_tag = request.form.getlist('resources_to_tag')
+            
+            form_contents = request.form.to_dict()
+            form_contents.pop("resources_to_tag")
         
-        form_contents = request.form.to_dict()
-        form_contents.pop("resources_to_tag")
-    
-        resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-        session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-        chosen_resources_to_tag = resources_tags(resource_type, unit, region) 
-        form_contents.pop("resource_type")
-        form_contents.pop("csrf_token")
+            resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+            chosen_resources_to_tag = resources_tags(resource_type, unit, region) 
+            form_contents.pop("resource_type")
+            form_contents.pop("csrf_token")
 
-        chosen_tags = list()
-        for key, value in form_contents.items():
-            if value:
-                tag_kv = dict()
-                tag_kv["Key"] = key
-                tag_kv["Value"] = value
-                chosen_tags.append(tag_kv)
-        execution_status = chosen_resources_to_tag.set_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
-        flash(execution_status['status_message'], execution_status['alert_level'])
-        if execution_status.get('alert_level') == 'success':
-            updated_sorted_tagged_inventory = dict()
-            all_sorted_tagged_inventory, all_sorted_tagged_inventory_execution_status = chosen_resources_to_tag.get_resources_tags(**session_credentials)
-            for resource_id in resources_to_tag:
-                updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]   
-            return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
+            chosen_tags = list()
+            for key, value in form_contents.items():
+                if value:
+                    tag_kv = dict()
+                    tag_kv["Key"] = key
+                    tag_kv["Value"] = value
+                    chosen_tags.append(tag_kv)
+            execution_status = chosen_resources_to_tag.set_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
+            flash(execution_status['status_message'], execution_status['alert_level'])
+            if execution_status.get('alert_level') == 'success':
+                updated_sorted_tagged_inventory = dict()
+                all_sorted_tagged_inventory, all_sorted_tagged_inventory_execution_status = chosen_resources_to_tag.get_resources_tags(**session_credentials)
+                for resource_id in resources_to_tag:
+                    updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]   
+                return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
+            else:
+                log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash('You are not authorized to view these resources', 'danger')
+                return render_template('blank.html')
         else:
+            log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash('You are not authorized to view these resources', 'danger')
             return render_template('blank.html')
     else:
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
 
 # Retrieves AWS Service Catalog products & Tag Groups
 @app.route('/get-service-catalog', methods=['GET'])
 @aws_auth.authentication_required
 def get_service_catalog():
+    user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    #Get the Tag Group names & associated tag keys
-    tag_group_inventory = dict()
-    tag_groups = get_tag_groups(region, **session_credentials)
-    tag_group_inventory, tag_groups_execution_status = tag_groups.get_tag_group_names()
+    if user_email and session_credentials.get('AccessKeyId'):
+        #Get the Tag Group names & associated tag keys
+        tag_group_inventory = dict()
+        tag_groups = get_tag_groups(region, **session_credentials)
+        tag_group_inventory, tag_groups_execution_status = tag_groups.get_tag_group_names()
 
-    #Get the Service Catalog product templates
-    sc_product_ids_names = dict()
-    sc_products = service_catalog(region, **session_credentials)
-    sc_product_ids_names, sc_product_ids_names_execution_status = sc_products.get_sc_product_templates()
-    
-    if sc_product_ids_names_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
-        return render_template('update-service-catalog.html', tag_group_inventory=tag_group_inventory, sc_product_ids_names=sc_product_ids_names)
+        #Get the Service Catalog product templates
+        sc_product_ids_names = dict()
+        sc_products = service_catalog(region, **session_credentials)
+        sc_product_ids_names, sc_product_ids_names_execution_status = sc_products.get_sc_product_templates()
+        
+        if sc_product_ids_names_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            return render_template('update-service-catalog.html', tag_group_inventory=tag_group_inventory, sc_product_ids_names=sc_product_ids_names)
+        else:
+            log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash('You are not authorized to modify these resources', 'danger')
+            return render_template('blank.html')
     else:
-        flash('You are not authorized to modify these resources', 'danger')
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
 
 # Updates AWS Service Catalog product templates with TagOptions using Tag Groups
 @app.route('/set-service-catalog', methods=['POST'])
 @aws_auth.authentication_required
 def set_service_catalog():
+    user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    if request.form.getlist('tag_groups_to_assign') and request.form.getlist('chosen_sc_product_template_ids'):
-        selected_tag_groups = list()
-        selected_tag_groups = request.form.getlist('tag_groups_to_assign')
-        sc_product_templates = list()
-        sc_product_templates = request.form.getlist('chosen_sc_product_template_ids')
+    if user_email and session_credentials.get('AccessKeyId'):
+        if request.form.getlist('tag_groups_to_assign') and request.form.getlist('chosen_sc_product_template_ids'):
+            selected_tag_groups = list()
+            selected_tag_groups = request.form.getlist('tag_groups_to_assign')
+            sc_product_templates = list()
+            sc_product_templates = request.form.getlist('chosen_sc_product_template_ids')
 
-        #Get the Service Catalog product templates
-        sc_product_ids_names = dict()
-        sc_products = service_catalog(region, **session_credentials)
-        sc_product_ids_names, sc_product_ids_names_execution_status = sc_products.get_sc_product_templates()
+            #Get the Service Catalog product templates
+            sc_product_ids_names = dict()
+            sc_products = service_catalog(region, **session_credentials)
+            sc_product_ids_names, sc_product_ids_names_execution_status = sc_products.get_sc_product_templates()
 
-        #Assign every tag in selected Tag Groups to selected SC product templates
-        updated_product_temp_tagoptions = defaultdict(list)
-        sc_response = dict()
-        for sc_prod_template_id in sc_product_templates:
-            for tag_group_name in selected_tag_groups:
-                sc_response.clear()
-                sc_response, sc_response_execution_status = sc_products.assign_tg_sc_product_template(tag_group_name, sc_prod_template_id, **session_credentials)
-                updated_product_temp_tagoptions[sc_prod_template_id].append(sc_response)
-        
-        if sc_response_execution_status.get('alert_level') == 'success' and sc_product_ids_names_execution_status.get('alert_level') == 'success':
-            flash('TagOptions update succeeded!', 'success')
-            return render_template('updated-service-catalog.html', sc_product_ids_names=sc_product_ids_names, updated_product_temp_tagoptions=updated_product_temp_tagoptions)
-        elif sc_response_execution_status.get('alert_level') == 'warning' and sc_product_ids_names_execution_status.get('alert_level') == 'success':
-            flash(sc_response_execution_status['status_message'], sc_response_execution_status['alert_level'])
-            return render_template('updated-service-catalog.html', sc_product_ids_names=sc_product_ids_names, updated_product_temp_tagoptions=updated_product_temp_tagoptions)
-        # for the case of Boto3 errors & unauthorized users
+            #Assign every tag in selected Tag Groups to selected SC product templates
+            updated_product_temp_tagoptions = defaultdict(list)
+            sc_response = dict()
+            for sc_prod_template_id in sc_product_templates:
+                for tag_group_name in selected_tag_groups:
+                    sc_response.clear()
+                    sc_response, sc_response_execution_status = sc_products.assign_tg_sc_product_template(tag_group_name, sc_prod_template_id, **session_credentials)
+                    updated_product_temp_tagoptions[sc_prod_template_id].append(sc_response)
+            
+            if sc_response_execution_status.get('alert_level') == 'success' and sc_product_ids_names_execution_status.get('alert_level') == 'success':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash('TagOptions update succeeded!', 'success')
+                return render_template('updated-service-catalog.html', sc_product_ids_names=sc_product_ids_names, updated_product_temp_tagoptions=updated_product_temp_tagoptions)
+            elif sc_response_execution_status.get('alert_level') == 'warning' and sc_product_ids_names_execution_status.get('alert_level') == 'success':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash(sc_response_execution_status['status_message'], sc_response_execution_status['alert_level'])
+                return render_template('updated-service-catalog.html', sc_product_ids_names=sc_product_ids_names, updated_product_temp_tagoptions=updated_product_temp_tagoptions)
+            # for the case of Boto3 errors & unauthorized users
+            else:
+                log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash('You are not authorized to modify these resources', 'danger')
+                return render_template('blank.html')    
         else:
-            flash('You are not authorized to modify these resources', 'danger')
-            return render_template('blank.html')    
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash('Please select at least one Tag Group and Service Catalog product.', 'warning')
+            return redirect(url_for('get_service_catalog'))
     else:
-        flash('Please select at least one Tag Group and Service Catalog product.', 'warning')
-        return redirect(url_for('get_service_catalog'))
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
+        return render_template('blank.html')
 
 # Retrieves AWS Config Rules & Tag Groups
 @app.route('/find-config-rules', methods=['GET'])
 @aws_auth.authentication_required
 def find_config_rules():
+    user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    #Get the Tag Group names & associated tag keys
-    tag_group_inventory = dict()
-    tag_groups = get_tag_groups(region, **session_credentials)
-    tag_group_inventory, tag_groups_execution_status = tag_groups.get_tag_group_names()
+    if user_email and session_credentials.get('AccessKeyId'):
+        #Get the Tag Group names & associated tag keys
+        tag_group_inventory = dict()
+        tag_groups = get_tag_groups(region, **session_credentials)
+        tag_group_inventory, tag_groups_execution_status = tag_groups.get_tag_group_names()
 
-    #Get the AWS Config Rules
-    config_rules_ids_names = dict()
-    config_rules = config(region, **session_credentials)
-    config_rules_ids_names, config_rules_execution_status = config_rules.get_config_rules_ids_names()
-    
-    if config_rules_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
-        return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
-    elif config_rules_execution_status.get('alert_level') == 'warning' and tag_groups_execution_status.get('alert_level') == 'success':
-        flash(config_rules_execution_status['status_message'], config_rules_execution_status['alert_level'])
-        return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
+        #Get the AWS Config Rules
+        config_rules_ids_names = dict()
+        config_rules = config(region, **session_credentials)
+        config_rules_ids_names, config_rules_execution_status = config_rules.get_config_rules_ids_names()
+        
+        if config_rules_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
+        elif config_rules_execution_status.get('alert_level') == 'warning' and tag_groups_execution_status.get('alert_level') == 'success':
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash(config_rules_execution_status['status_message'], config_rules_execution_status['alert_level'])
+            return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
+        else:
+            log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash('You are not authorized to modify these resources', 'danger')
+            return render_template('blank.html')
     else:
-        flash('You are not authorized to modify these resources', 'danger')
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
-
+        
 # Updates AWS Config's required-tags rule using Tag Groups
 @app.route('/update-config-rules', methods=['POST'])
 @aws_auth.authentication_required
 def set_config_rules():
+    user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    if request.form.getlist('tag_groups_to_assign') and request.form.getlist('chosen_config_rule_ids'):
-        selected_tag_groups = list()
-        selected_tag_groups = request.form.getlist('tag_groups_to_assign')
-        selected_config_rules = list()
-        selected_config_rules = request.form.getlist('chosen_config_rule_ids')
-        config_rule_id = selected_config_rules[0]
+    if user_email and session_credentials.get('AccessKeyId'):
+        if request.form.getlist('tag_groups_to_assign') and request.form.getlist('chosen_config_rule_ids'):
+            selected_tag_groups = list()
+            selected_tag_groups = request.form.getlist('tag_groups_to_assign')
+            selected_config_rules = list()
+            selected_config_rules = request.form.getlist('chosen_config_rule_ids')
+            config_rule_id = selected_config_rules[0]
 
-        tag_groups = get_tag_groups(region, **session_credentials)
-        tag_group_key_values = dict()
-        tag_groups_keys_values = dict()
-        tag_count=1
-        for group in selected_tag_groups:
-            # A Required_Tags Config Rule instance accepts up to 6 Tag Groups
-            if tag_count < 7:
-                tag_group_key_values, key_values_execution_status = tag_groups.get_tag_group_key_values(group)
-                key_name = "tag{}Key".format(tag_count)
-                value_name = "tag{}Value".format(tag_count)
-                tag_groups_keys_values[key_name] = tag_group_key_values['tag_group_key']
-                tag_group_values_string = ",".join(tag_group_key_values['tag_group_values'])
-                tag_groups_keys_values[value_name] = tag_group_values_string
-                tag_count+=1
+            tag_groups = get_tag_groups(region, **session_credentials)
+            tag_group_key_values = dict()
+            tag_groups_keys_values = dict()
+            tag_count=1
+            for group in selected_tag_groups:
+                # A Required_Tags Config Rule instance accepts up to 6 Tag Groups
+                if tag_count < 7:
+                    tag_group_key_values, key_values_execution_status = tag_groups.get_tag_group_key_values(group)
+                    key_name = "tag{}Key".format(tag_count)
+                    value_name = "tag{}Value".format(tag_count)
+                    tag_groups_keys_values[key_name] = tag_group_key_values['tag_group_key']
+                    tag_group_values_string = ",".join(tag_group_key_values['tag_group_values'])
+                    tag_groups_keys_values[value_name] = tag_group_values_string
+                    tag_count+=1
 
-        config_rules = config(region, **session_credentials)
-        set_rules_execution_status = config_rules.set_config_rules(tag_groups_keys_values, config_rule_id)
-        updated_config_rule, get_rule_execution_status = config_rules.get_config_rule(config_rule_id)
-        flash(set_rules_execution_status['status_message'], set_rules_execution_status['alert_level'])
-        if set_rules_execution_status.get('alert_level') == 'success' and get_rule_execution_status.get('alert_level') == 'success':
-            return render_template('updated-config-rules.html', updated_config_rule=updated_config_rule)
-        elif set_rules_execution_status.get('alert_level') == 'warning':
-            return redirect(url_for('find_config_rules'))
-        # for the case of Boto3 errors & unauthorized users
+            config_rules = config(region, **session_credentials)
+            set_rules_execution_status = config_rules.set_config_rules(tag_groups_keys_values, config_rule_id)
+            updated_config_rule, get_rule_execution_status = config_rules.get_config_rule(config_rule_id)
+            flash(set_rules_execution_status['status_message'], set_rules_execution_status['alert_level'])
+            if set_rules_execution_status.get('alert_level') == 'success' and get_rule_execution_status.get('alert_level') == 'success':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                return render_template('updated-config-rules.html', updated_config_rule=updated_config_rule)
+            elif set_rules_execution_status.get('alert_level') == 'warning':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                return redirect(url_for('find_config_rules'))
+            # for the case of Boto3 errors & unauthorized users
+            else:
+                log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash('You are not authorized to view these resources', 'danger')
+                return render_template('blank.html')
         else:
-            return render_template('blank.html')
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash('Please select at least one Tag Group and Config rule.', 'warning')
+            return redirect(url_for('find_config_rules'))
     else:
-        flash('Please select at least one Tag Group and Config rule.', 'warning')
-        return redirect(url_for('find_config_rules'))
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
+        return render_template('blank.html')
 
 # Retrieves AWS IAM Roles & Tag Groups
 @app.route('/select-roles-tags', methods=['GET'])
 @aws_auth.authentication_required
 def select_roles_tags():
+    user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    tag_group_inventory = get_tag_groups(region, **session_credentials)
-    tag_groups_all_info, tag_groups_all_execution_status = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
+    if user_email and session_credentials.get('AccessKeyId'):
+        tag_group_inventory = get_tag_groups(region, **session_credentials)
+        tag_groups_all_info, tag_groups_all_execution_status = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
 
-    iam_roles = roles(region, **session_credentials)
-    # In initial Tag Tamer release get AWS SSO Roles
-    path_prefix = "/aws-reserved/sso.amazonaws.com/"
-    roles_inventory, roles_execution_status = iam_roles.get_roles(path_prefix)
+        iam_roles = roles(region, **session_credentials)
+        # In initial Tag Tamer release get AWS SSO Roles
+        path_prefix = "/aws-reserved/sso.amazonaws.com/"
+        roles_inventory, roles_execution_status = iam_roles.get_roles(path_prefix)
 
-    # User notifications based on her/his permission to access IAM Roles
-    flash(roles_execution_status['status_message'], roles_execution_status['alert_level'])
-    if roles_execution_status.get('alert_level') == 'success' and tag_groups_all_execution_status.get('alert_level') == 'success':
-        return render_template('tag-roles.html', roles_inventory=roles_inventory, tag_groups_all_info=tag_groups_all_info)
-    # for the case of Boto3 errors & unauthorized users
+        # User notifications based on her/his permission to access IAM Roles
+        flash(roles_execution_status['status_message'], roles_execution_status['alert_level'])
+        if roles_execution_status.get('alert_level') == 'success' and tag_groups_all_execution_status.get('alert_level') == 'success':
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            return render_template('tag-roles.html', roles_inventory=roles_inventory, tag_groups_all_info=tag_groups_all_info)
+        # for the case of Boto3 errors & unauthorized users
+        else:
+            log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash('You are not authorized to view these resources', 'danger')
+            return render_template('blank.html')
     else:
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
 
 # Assigns selected tags to roles for tagging newly created AWS resources
 @app.route('/set-roles-tags', methods=['POST'])
 @aws_auth.authentication_required
 def set_roles_tags():
+    user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    if request.form.get('roles_to_tag'):
-        role_name = request.form.get('roles_to_tag')
-        form_contents = request.form.to_dict()
-        form_contents.pop('roles_to_tag')
-        form_contents.pop("csrf_token")
+    if user_email and session_credentials.get('AccessKeyId'):
+        if request.form.get('roles_to_tag'):
+            role_name = request.form.get('roles_to_tag')
+            form_contents = request.form.to_dict()
+            form_contents.pop('roles_to_tag')
+            form_contents.pop("csrf_token")
 
-        chosen_tags = list()
-        for key, value in form_contents.items():
-            if value:
-                tag_kv = {}
-                tag_kv["Key"] = key
-                tag_kv["Value"] = value
-                chosen_tags.append(tag_kv)
+            chosen_tags = list()
+            for key, value in form_contents.items():
+                if value:
+                    tag_kv = {}
+                    tag_kv["Key"] = key
+                    tag_kv["Value"] = value
+                    chosen_tags.append(tag_kv)
 
-        role_to_tag = roles(region, **session_credentials)
-        execution_status = role_to_tag.set_role_tags(role_name, chosen_tags)
-        flash(execution_status['status_message'], execution_status['alert_level'])
-        if execution_status.get('alert_level') == 'success':
-            return redirect(url_for('select_roles_tags'))
-        # for the case of Boto3 errors & unauthorized users
+            role_to_tag = roles(region, **session_credentials)
+            execution_status = role_to_tag.set_role_tags(role_name, chosen_tags)
+            flash(execution_status['status_message'], execution_status['alert_level'])
+            if execution_status.get('alert_level') == 'success':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                return redirect(url_for('select_roles_tags'))
+            # for the case of Boto3 errors & unauthorized users
+            else:
+                log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash('You are not authorized to view these resources', 'danger')
+                return render_template('blank.html')
         else:
-            return render_template('blank.html')
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash('Please select at least one Tag Group and IAM SSO Role.', 'warning')
+            return redirect(url_for('select_roles_tags'))
     else:
-        flash('Please select at least one Tag Group and IAM SSO Role.', 'warning')
-        return redirect(url_for('select_roles_tags'))
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to view these resources', 'danger')
+        return render_template('blank.html')
 
 @app.route('/logout', methods=['GET'])
 @aws_auth.authentication_required
 def logout():
     claims = aws_auth.claims
-    log.info("Successful logout.  User \"{}\" signed out on {}".format(claims.get('username'), date_time_now()))
+    user_email, user_source = get_user_email_ip(request)
+    log.info("Successful logout.  User \"{}\" with email \"{}\" signed out on {} from location \"{}\"".format(claims.get('username'), user_email, date_time_now(), user_source))
     response = make_response(render_template('logout.html'))
     response.delete_cookie('access_token')
     response.delete_cookie('id_token')
