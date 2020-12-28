@@ -382,7 +382,7 @@ def select_resource_type():
         log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source))
         next_route  = request.form.get('next_route')
         if not next_route:
-            next_route = 'tag_resources'
+            next_route = 'tag_filter'
         return render_template('select-resource-type.html', destination_route=next_route)
     else:
         log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
