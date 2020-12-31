@@ -8,8 +8,6 @@ amazon-linux-extras install nginx1 -y
 # Install Python modules
 mkdir -p /home/ec2-user/tag-tamer/prod
 chown -R ec2-user:ec2-user /home/ec2-user/tag-tamer
-#pip3 install boto3 botocore flask flask-WTF gunicorn Flask_jwt_Extended flask_login
-#pip3 install /var/tmp/tag-tamer/source/Flask-AWSCognito
 su - ec2-user -c "python3 -m venv /home/ec2-user/tag-tamer/prod;source /home/ec2-user/tag-tamer/prod/bin/activate; pip3 install boto3 botocore flask flask-WTF gunicorn python-jose /var/tmp/tag-tamer/source/Flask-AWSCognito; deactivate"
 
 # Copy code and config
