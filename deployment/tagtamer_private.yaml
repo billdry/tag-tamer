@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: AWS Cloudformation template for TagTamer solution components - version - RC10
+Description: AWS Cloudformation template for TagTamer solution components - version - RC11
 Metadata: 
   AWS::CloudFormation::Interface: 
     ParameterGroups: 
@@ -65,8 +65,8 @@ Resources:
         - AttributeName: tag_group_name
           KeyType: HASH
       ProvisionedThroughput:
-        ReadCapacityUnits: '5'
-        WriteCapacityUnits: '5'
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
       TableName: tag_tamer_tag_groups
   TagTamerRolesTable:
     Type: 'AWS::DynamoDB::Table'
@@ -108,18 +108,18 @@ Resources:
   InstanceSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: Allow http/ssh traffic
+      GroupDescription: Allow inbound https traffic
       GroupName: SG-TagTamer
       VpcId: !Ref VPCID
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: !Ref CIDRIPRange
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !Ref CIDRIPRange
+        #- IpProtocol: tcp
+        #  FromPort: 80
+        #  ToPort: 80
+        #  CidrIp: !Ref CIDRIPRange
+        #- IpProtocol: tcp
+        #  FromPort: 22
+        #  ToPort: 22
+        #  CidrIp: !Ref CIDRIPRange
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
@@ -163,65 +163,22 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Sid: configtagging
+          - Sid: CognitoIdentity
             Action:
-              - 'config:DescribeConfigRules'
-              - 'config:PutConfigRule'
+              - 'cognito-identity:GetId'
+              - 'cognito-identity:GetCredentialsForIdentity'
             Effect: Allow
             Resource: '*'
-          - Sid: ec2tagging
-            Action:
-              - 'ec2:CreateTags'
-              - 'ec2:DeleteTags'
-              - 'ec2:DescribeInstances'
-              - 'ec2:DescribeTags'
-              - 'ec2:DescribeVolumes'
-            Effect: Allow
-            Resource: '*'
-          - Sid: iamtagging
-            Action:
-              - 'iam:ListRoles'
-            Effect: Allow
-            Resource: '*'
-          - Sid: s3tagging
-            Action:
-              - 's3:DeleteObjectTagging'
-              - 's3:GetBucketTagging'
-              - 's3:ListBucket'
-              - 's3:PutBucketTagging'
-              - 's3:PutObjectTagging'
-              - 's3:ReplicateTags'
-            Effect: Allow
-            Resource: '*'
-          - Sid: ssmparameteraccess
+          - Sid: SSMParameters
             Action:
               - 'ssm:GetParametersByPath'
-              - 'ssm:GetParameters'
             Effect: Allow
-            Resource: '*'
-          - Sid: serviceCatalog
+            Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tag-tamer/*'
+          - Sid: CognitoUserPool
             Action:
-              - 'servicecatalog:CreateTagOption'
-              - 'servicecatalog:DescribePortfolio'
-              - 'servicecatalog:DescribeProduct'
-              - 'servicecatalog:DescribeProductAsAdmin'
-              - 'servicecatalog:ListTagOptions'
-              - 'servicecatalog:SearchProducts'
-              - 'servicecatalog:UpdatePortfolio'
-              - 'servicecatalog:UpdateProduct'
-              - 'servicecatalog:UpdateTagOption'
+              - 'cognito-idp:AdminListGroupsForUser'
             Effect: Allow
-            Resource: '*'
-          - Sid: dynamodbRW
-            Effect: Allow
-            Action:
-              - 'dynamodb:PutItem'
-              - 'dynamodb:GetItem'
-              - 'dynamodb:Scan'
-              - 'dynamodb:UpdateItem'
-            Resource:
-              - 'arn:aws:dynamodb:*:*:table/tag_tamer_roles'
-              - 'arn:aws:dynamodb:*:*:table/tag_tamer_tag_groups'
+            Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${TagTamerCognitoUserPool}'
       Roles:
         - TagTamerRole
     DependsOn:

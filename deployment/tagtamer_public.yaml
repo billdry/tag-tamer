@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: AWS Cloudformation template for TagTamer solution components - version - RC14
+Description: AWS Cloudformation template for TagTamer solution components - version - RC15
 
 Metadata: 
   AWS::CloudFormation::Interface: 
@@ -318,9 +318,6 @@ Resources:
             Principal:
               Service:
                 - ec2.amazonaws.com
-              #  - s3.amazonaws.com
-              #  - dynamodb.amazonaws.com
-              #  - cloudformation.amazonaws.com
             Action:
               - 'sts:AssumeRole'
       RoleName: TagTamerRole
@@ -338,18 +335,18 @@ Resources:
   InstanceSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: Allow http/ssh traffic
+      GroupDescription: Allow inbound https traffic
       GroupName: SG-TagTamer
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
+        #- IpProtocol: tcp
+        #  FromPort: 80
+        #  ToPort: 80
+        #  CidrIp: 0.0.0.0/0
+        #- IpProtocol: tcp
+        #  FromPort: 22
+        #  ToPort: 22
+        #  CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
@@ -410,7 +407,7 @@ Resources:
             Action:
               - 'ssm:GetParametersByPath'
             Effect: Allow
-            Resource: !Sub 'arn:aws:ssm:*:${AWS::AccountId}:parameter/*'
+            Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tag-tamer/*'
           - Sid: CognitoUserPool
             Action:
               - 'cognito-idp:AdminListGroupsForUser'
