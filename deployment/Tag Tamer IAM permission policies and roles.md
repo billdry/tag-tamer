@@ -2,37 +2,42 @@
 
 ## Tag Tamer web app instance profile
 
-### IAM Permission policy
+### IAM Permission policy for instance profile IAM role
 
+#### Inline Policies attached to instance profile IAM role
 ```
 {
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "VisualEditor0",
-            "Effect": "Allow",
             "Action": [
                 "cognito-identity:GetId",
                 "cognito-identity:GetCredentialsForIdentity"
             ],
-            "Resource": "*"
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "CognitoIdentity"
         },
         {
-            "Sid": "VisualEditor1",
-            "Effect": "Allow",
             "Action": [
-                "ssm:GetParametersByPath",
+                "ssm:GetParametersByPath"
+            ],
+            "Resource": "arn:aws:ssm:<YOUR_SSM_REGION>:<YOUR_AWS_ACCOUNT>:parameter/tag-tamer/*",
+            "Effect": "Allow",
+            "Sid": "SSMParameters"
+        },
+        {
+            "Action": [
                 "cognito-idp:AdminListGroupsForUser"
             ],
-            "Resource": [
-                "arn:aws:ssm:*:*:parameter/*",
-                "arn:aws:cognito-idp:<YOUR_COGNITO_REGION>:*:userpool/<YOUR_USER_POOL_ID>"
-            ]
+            "Resource": "arn:aws:cognito-idp:<YOUR_COGNITO_REGION>:<YOUR_AWS_ACCOUNT>:userpool/<YOUR_USER_POOL_ID>",
+            "Effect": "Allow",
+            "Sid": "CognitoUserPool"
         }
     ]
 }
 ```
-### IAM Role
+#### AWS managed policies attached to instance profile IAM role
 
 ```
 arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
@@ -109,9 +114,9 @@ arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 }
 ```
 
-## Cognito User Pool Groups
+## Example Cognito User Pool Groups
 
-### All access user pool group
+### Example All access user pool group
 
 #### IAM role permissions policy
 
@@ -128,7 +133,7 @@ arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 }
 ```
 
-#### IAM Role trust policy
+#### IAM role trust policy
 
 ```
 {
