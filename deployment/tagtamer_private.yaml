@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: AWS Cloudformation template for TagTamer solution components - version - RC9
+Description: AWS Cloudformation template for TagTamer solution components - version - RC10
 Metadata: 
   AWS::CloudFormation::Interface: 
     ParameterGroups: 
@@ -146,9 +146,10 @@ Resources:
           !Sub |
             #!/bin/bash -xe
             cd /var/tmp
-            yum -y install git
+            yum -y install git dos2unix
             git clone https://github.com/billdry/tag-tamer-deployment-test.git
             cd tagtamer/source
+            dos2unix tagtamer-install.sh
             bash tagtamer-install.sh
       Tags:
         - Key: Name
@@ -422,7 +423,7 @@ Resources:
     Properties:
       Name: /tag-tamer/jwt-cookie-csrf-protect
       Type: String
-      Value: False
+      Value: 'False'
 
   UserPoolClientRole:
   # Created to execute Lambda which gets userpool app client config values

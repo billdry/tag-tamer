@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: AWS Cloudformation template for TagTamer solution components - version - RC12
+Description: AWS Cloudformation template for TagTamer solution components - version - RC14
 
 Metadata: 
   AWS::CloudFormation::Interface: 
@@ -376,9 +376,10 @@ Resources:
           !Sub |
             #!/bin/bash -xe
             cd /var/tmp
-            yum -y install git
+            yum -y install git dos2unix
             git clone https://github.com/billdry/tag-tamer.git
             cd tag-tamer/source
+            dos2unix tagtamer-install.sh
             bash tagtamer-install.sh
       Tags:
         - Key: Name

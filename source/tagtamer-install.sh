@@ -2,7 +2,7 @@
 
 # Install rpms
 yum update -y
-yum install -y python3 python3-pip dos2unix yum-utils
+yum install -y python3 python3-pip
 amazon-linux-extras install nginx1 -y
 
 # Install Python modules
@@ -22,8 +22,8 @@ cp -pr code/* to /home/ec2-user/tag-tamer/
 
 mkdir -p /home/ec2-user/tag-tamer/log
 mkdir -p /var/log/tag-tamer
-touch /var/log/tag-tamer/tag-tamer.err.log
-touch /var/log/tag-tamer/tag-tamer.out.log
+#touch /var/log/tag-tamer/tag-tamer.err.log
+#touch /var/log/tag-tamer/tag-tamer.out.log
 
 # Permissions
 chown root:root /etc/nginx/conf.d/tag-tamer.conf /etc/nginx/proxy_params /etc/nginx/default.d/ssl-redirect.conf /etc/systemd/system/tag-tamer.service
