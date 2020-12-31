@@ -26,7 +26,7 @@
             ],
             "Resource": [
                 "arn:aws:ssm:*:*:parameter/*",
-                "arn:aws:cognito-idp:us-east-1:*:userpool/<YOUR_USER_POOL_ID>"
+                "arn:aws:cognito-idp:<YOUR_COGNITO_REGION>:*:userpool/<YOUR_USER_POOL_ID>"
             ]
         }
     ]
@@ -104,6 +104,43 @@ arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         "Service": "lambda.amazonaws.com"
       },
       "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+## Cognito User Pool Groups
+
+### All access user pool group
+
+#### IAM role permissions policy
+
+```
+
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "*",
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+#### IAM Role trust policy
+
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "",
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "cognito-identity.amazonaws.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity"
     }
   ]
 }
