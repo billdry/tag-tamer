@@ -11,6 +11,8 @@ import boto3, botocore
 from botocore import exceptions
 # Import collections to use ordered dictionaries for storage
 from collections import OrderedDict
+# Import AWS EKS clusters resources & rags getters & setters
+from eks_clusters_tags import *
 # Import AWS Lambda resources & tags getters & setters
 from lambda_resources_tags import * 
 # Import logging module
@@ -315,6 +317,11 @@ class resources_tags:
             named_resource_inventory, lambda_resources_status = functions_inventory.get_lambda_names_ids(self.filter_tags, **self.session_credentials)
             return named_resource_inventory, lambda_resources_status
 
+        elif self.unit == "clusters":
+            clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
+            named_resource_inventory, eks_clusters_status = clusters_inventory.get_eks_clusters_ids(self.filter_tags, **self.session_credentials)
+            return named_resource_inventory, eks_clusters_status
+
         # Sort the resources based on the resource's name
         ordered_inventory = OrderedDict()
         ordered_inventory = sorted(named_resource_inventory.items(), key=lambda item: item[1])
@@ -419,6 +426,11 @@ class resources_tags:
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             tagged_resource_inventory, lambda_resources_status = functions_inventory.get_lambda_resources_tags(**self.session_credentials)
             return tagged_resource_inventory, lambda_resources_status
+        
+        elif self.unit == 'clusters':
+            clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
+            tagged_resource_inventory, eks_clusters_status = clusters_inventory.get_eks_clusters_tags(**self.session_credentials)
+            return tagged_resource_inventory, eks_clusters_status
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
 
@@ -509,6 +521,11 @@ class resources_tags:
             sorted_tag_keys_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_keys(**self.session_credentials)
             return sorted_tag_keys_inventory, lambda_resources_status
 
+        elif self.unit == 'clusters':
+            clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
+            sorted_tag_keys_inventory, eks_clusters_status = clusters_inventory.get_eks_clusters_keys(**self.session_credentials) 
+            return sorted_tag_keys_inventory, eks_clusters_status
+
         #Remove duplicate tags & sort
         sorted_tag_keys_inventory = list(set(sorted_tag_keys_inventory))
         sorted_tag_keys_inventory.sort(key=str.lower)
@@ -597,6 +614,11 @@ class resources_tags:
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             sorted_tag_values_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_values(**self.session_credentials)
             return sorted_tag_values_inventory, lambda_resources_status
+
+        elif self.unit == 'clusters':
+            clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
+            sorted_tag_values_inventory, eks_clusters_status = clusters_inventory.get_eks_clusters_values(**self.session_credentials) 
+            return sorted_tag_values_inventory, eks_clusters_status
         
         #Remove duplicate tags & sort
         sorted_tag_values_inventory = list(set(sorted_tag_values_inventory))
@@ -713,5 +735,10 @@ class resources_tags:
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             lambda_resources_status = functions_inventory.set_lambda_resources_tags(resources_to_tag, chosen_tags, **self.session_credentials)
             return lambda_resources_status
+        
+        elif self.unit == 'clusters':
+            clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
+            eks_clusters_status = clusters_inventory.set_eks_clusters_tags(resources_to_tag, chosen_tags, **self.session_credentials) 
+            return eks_clusters_status
 
         return my_status.get_status()

@@ -19,19 +19,23 @@ SPDX-License-Identifier: MIT-0 -->
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-check">
                 <input class="form-check-input" type="radio" id="ebsRadio" value="ebs" name="resource_type" checked>
-                    <label class="form-check-label" for="ebsRadio">EBS Volumes</label>
+                    <label class="form-check-label" for="ebsRadio">Amazon EBS Volumes</label>
             </div>
             <div class="form-check">
                 <input class="form-check-input" type="radio" id="ec2Radio" value="ec2" name="resource_type">
-                    <label class="form-check-label" for="ec2Radio">EC2 Instances</label>
+                    <label class="form-check-label" for="ec2Radio">Amazon EC2 Instances</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" id="eksRadio" value="eks" name="resource_type">
+                    <label class="form-check-label" for="ec2Radio">Amazon EKS Clusters</label>
             </div>
             <div class="form-check">
                 <input class="form-check-input" type="radio" id="lambdaRadio" value="lambda" name="resource_type">
-                    <label class="form-check-label" for="lambdaRadio">Lambda Functions</label>
+                    <label class="form-check-label" for="lambdaRadio">AWS Lambda Functions</label>
             </div>
             <div class="form-check">
                 <input class="form-check-input" type="radio" id="bucketRadio" value="s3" name="resource_type">
-                    <label class="form-check-label" for="bucketRadio">S3 Buckets</label>
+                    <label class="form-check-label" for="bucketRadio">Amazon S3 Buckets</label>
             </div>
             <button type="submit" class="btn btn-primary btn-lg">Manage Tag Groups</button>
         </form>

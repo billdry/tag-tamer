@@ -23,6 +23,9 @@ def get_resource_type_unit(type):
         elif type == "ec2":
             resource_type = 'ec2'
             unit = 'instances'
+        elif type == "eks":
+            resource_type = 'eks'
+            unit = 'clusters'
         elif type == "lambda":
             resource_type = 'lambda'
             unit = 'functions'
@@ -30,6 +33,7 @@ def get_resource_type_unit(type):
             resource_type = 's3'
             unit = 'buckets'
         else:
+            # If no resource type specified, set type to Amazon EC2
             resource_type = 'ec2'
             unit = 'instances'
         return resource_type, unit
