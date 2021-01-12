@@ -65,9 +65,15 @@ class CognitoService:
                 f"no access token returned for code {response_json}"
             )
         access_token = response_json["access_token"]
-        # Add return of id_token
+        # 2020-12-10 Amazon addition
+        # Purpose - Add return of Amazon Cognito identity JWT "id_token"
+        if "id_token" not in response_json:
+            raise FlaskAWSCognitoError(
+                f"no identity(id) token returned for code {response_json}"
+            )
         id_token = response_json["id_token"]
         return access_token, id_token
+        # End of Amazon addition
 
     def get_user_info(self, access_token, requests_client=None):
         user_url = f"{self.domain}/oauth2/userInfo"

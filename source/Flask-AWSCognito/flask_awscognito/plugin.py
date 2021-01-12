@@ -75,16 +75,19 @@ class AWSCognitoAuthentication:
         sign_in_url = self.cognito_service.get_sign_in_url()
         return sign_in_url
 
-    # Modified to return access_token & id_token
-    #def get_access_token(self, request_args):
+    # 2020-12-10 - Amazon addition
+    # Purpose - Modified to return access_token & id_token
+    # Original - def get_access_token(self, request_args):
     def get_tokens(self, request_args):
         code = request_args.get("code")
         state = request_args.get("state")
         expected_state = get_state(self.user_pool_id, self.user_pool_client_id)
         if state != expected_state:
             raise FlaskAWSCognitoError("State for CSRF is not correct ")
+        # Return Cognito access & identity JWT tokens
         access_token, id_token = self.cognito_service.exchange_code_for_token(code)
         return access_token, id_token
+    # End of Amazon addition
 
     def get_user_info(self, access_token):
         return self.cognito_service.get_user_info(access_token)
@@ -100,8 +103,11 @@ class AWSCognitoAuthentication:
                 g.cognito_claims = self.claims
             except TokenVerifyError as e:
                 _ = request.data
-                ##Original - abort(make_response(jsonify(message=str(e)), 401))
+                # 2020-10-01 - Amazon addition
+                # Purpose - fix HTTP return code 
+                # Original - abort(make_response(jsonify(message=str(e)), 401))
                 abort(401)
+                # End of Amazon addition
             return view(*args, **kwargs)
 
         return decorated
