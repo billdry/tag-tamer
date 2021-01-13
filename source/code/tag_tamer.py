@@ -228,6 +228,9 @@ def found_tags():
         if execution_status.get('alert_level') == 'success':
             log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
             return render_template('found-tags.html', inventory=sorted_tagged_inventory)
+        elif execution_status.get('alert_level') == 'warning':
+            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            return render_template('blank.html')
         else:
             log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
             flash('You are not authorized to view these resources', 'danger')
