@@ -279,6 +279,7 @@ class eks_clusters_tags:
             my_clusters = client.list_clusters()
             if len(my_clusters['clusters']) == 0:
                 tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
+                my_status.warning(message='No Amazon EKS clusters found!')
             else:
                 for item in my_clusters['clusters']:
                     resource_tags = {}
