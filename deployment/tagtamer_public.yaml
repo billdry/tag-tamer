@@ -408,7 +408,7 @@ Resources:
               - 'cognito-identity:GetId'
               - 'cognito-identity:GetCredentialsForIdentity'
             Effect: Allow
-            Resource: '*'
+            Resource: !Sub 'arn:aws:cognito-identity:${AWS::Region}:${AWS::AccountId}:identitypool/${TagTamerCognitoIdentityPool}
           - Sid: SSMParameters
             Action:
               - 'ssm:GetParametersByPath'

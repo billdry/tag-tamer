@@ -19,6 +19,10 @@ Metadata:
         Parameters: 
           - Email
           - TagTamerUserPoolName
+      - Label:
+          default: "Cognito Identity Pool configuration"
+        Parameters: 
+          - TagTamerIdentityPoolName
 
 Parameters:
   KeyName:
@@ -27,7 +31,7 @@ Parameters:
     ConstraintDescription: must be the name of an existing EC2 KeyPair.
     Default: yourkeyname
   AMIID:
-    Description: Select Amazon Linux AMI to use for Tag Tamer solution. Recommened to use amzn2-ami-hvm-x86_64-gp2.
+    Description: Select Amazon Linux AMI to use for Tag Tamer solution. Recommended to use amzn2-ami-hvm-x86_64-gp2.
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
   VPCID:
@@ -52,6 +56,10 @@ Parameters:
     Type: String
     Default: tag-tamer-user-pool
     Description: Name of Tag Tamer's Amazon Cognito User Pool used for user authentication
+  TagTamerIdentityPoolName:
+    Type: String
+    Default: tag_tamer_identity_pool
+    Description: Name of Tag Tamer's Amazon Cognito Identity Pool
 
 Resources:
 
@@ -61,12 +69,22 @@ Resources:
       AttributeDefinitions:
         - AttributeName: tag_group_name
           AttributeType: S
+      BillingMode: 'PROVISIONED'
       KeySchema:
         - AttributeName: tag_group_name
           KeyType: HASH
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: True
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
+      SSESpecification:
+        SSEEnabled: False
       TableName: tag_tamer_tag_groups
   TagTamerRolesTable:
     Type: 'AWS::DynamoDB::Table'
@@ -74,16 +92,31 @@ Resources:
       AttributeDefinitions:
         - AttributeName: role_arn
           AttributeType: S
+      BillingMode: 'PROVISIONED'
       KeySchema:
         - AttributeName: role_arn
           KeyType: HASH
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: True
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
+      SSESpecification:
+        SSEEnabled: False
       TableName: tag_tamer_roles
   TagTamerRole:
     Type: 'AWS::IAM::Role'
     Properties:
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -108,8 +141,13 @@ Resources:
   InstanceSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: Allow inbound https traffic
+      GroupDescription: 'Allow inbound https traffic & outbound traffic initiated by Tag Tamer web app'
       GroupName: SG-TagTamer
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
       VpcId: !Ref VPCID
       SecurityGroupIngress:
         #- IpProtocol: tcp
@@ -126,7 +164,14 @@ Resources:
           CidrIp: !Ref CIDRIPRange
       SecurityGroupEgress:
         - IpProtocol: tcp
-          CidrIp: '0.0.0.0/0'
+          CidrIp: '0.0.0.0/'
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W5
+            reason: "Works as designed"
+          - id: W36
+            reason: "This Security Group includes a description."
   EC2Instance:
     Type: 'AWS::EC2::Instance'
     Properties:
@@ -171,7 +216,7 @@ Resources:
               - 'cognito-identity:GetId'
               - 'cognito-identity:GetCredentialsForIdentity'
             Effect: Allow
-            Resource: '*'
+            Resource: !Sub 'arn:aws:cognito-identity:${AWS::Region}:${AWS::AccountId}:identitypool/${TagTamerCognitoIdentityPool}
           - Sid: SSMParameters
             Action:
               - 'ssm:GetParametersByPath'
@@ -314,6 +359,15 @@ Resources:
       - website
       - zoneinfo
 
+  TagTamerCognitoIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId: !Ref TagTamerUserPoolClient
+          ProviderName: !GetAtt TagTamerCognitoUserPool.ProviderName
+      IdentityPoolName: !Ref TagTamerIdentityPoolName
+  
   TagTamerCognitoDefaultRegion:
     Type: AWS::SSM::Parameter
     Properties:
@@ -328,6 +382,13 @@ Resources:
       Type: String
       Value: !Sub https://${EC2Instance}.auth.${AWS::Region}.amazoncognito.com
 
+  TagTamerCognitoIdentityPoolId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/cognito-identity-pool-id-value
+      Type: String
+      Value: !Ref TagTamerCognitoIdentityPool
+  
   TagTamerCognitoUserPoolId:
     Type: AWS::SSM::Parameter
     Properties:
@@ -369,7 +430,7 @@ Resources:
     Properties:
       Name: /tag-tamer/jwt-cookie-secure
       Type: String
-      Value: False
+      Value: 'False'
 
   TagTamerJwtAccessCookieName:
     Type: AWS::SSM::Parameter
@@ -390,6 +451,11 @@ Resources:
     Type: 'AWS::IAM::Role'
     Properties:
       RoleName: TagTamer-LambdaRole
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -432,6 +498,11 @@ Resources:
             - ' }'
             - '};'
       Handler: index.handler
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+        -   id: W58
+            reason: "Works as designed"
       Runtime: nodejs10.x
       Timeout: '300'
       Role: !GetAtt 
