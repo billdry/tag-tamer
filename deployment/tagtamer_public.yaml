@@ -217,6 +217,9 @@ Resources:
         FromPort: 443
         IpProtocol: tcp
         ToPort: 443
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          CidrIp: '0.0.0.0/0'
       Tags:
       - Key: Name
         Value: Tagtamer-PublicLoadBalancerSecurityGroup
@@ -351,6 +354,9 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          CidrIp: '0.0.0.0/0'
   EC2Instance:
     Type: 'AWS::EC2::Instance'
     Properties:
@@ -484,7 +490,7 @@ Resources:
         EmailSendingAccount: COGNITO_DEFAULT
       EmailVerificationMessage: 'Your Tag Tamer verification code is {####}. '
       EmailVerificationSubject: Your Tag Tamer verification code
-      MfaConfiguration: 'OFF'
+      MfaConfiguration: 'OPTIONAL'
       Policies:
         PasswordPolicy:
           MinimumLength: 8
