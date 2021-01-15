@@ -73,11 +73,6 @@ Resources:
       KeySchema:
         - AttributeName: tag_group_name
           KeyType: HASH
-      Metadata:
-        cfn_nag:
-          rules_to_suppress:
-          - id: W28
-            reason: "Works as designed"
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: True
       ProvisionedThroughput:
@@ -86,6 +81,13 @@ Resources:
       SSESpecification:
         SSEEnabled: False
       TableName: tag_tamer_tag_groups
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
+          - id: W74
+            reason: "Encrypted using AWS-owned CMK.  Customers may change this to their CMK if desired."
   TagTamerRolesTable:
     Type: 'AWS::DynamoDB::Table'
     Properties:
@@ -96,11 +98,6 @@ Resources:
       KeySchema:
         - AttributeName: role_arn
           KeyType: HASH
-      Metadata:
-        cfn_nag:
-          rules_to_suppress:
-          - id: W28
-            reason: "Works as designed"
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: True
       ProvisionedThroughput:
@@ -109,14 +106,16 @@ Resources:
       SSESpecification:
         SSEEnabled: False
       TableName: tag_tamer_roles
-  TagTamerRole:
-    Type: 'AWS::IAM::Role'
-    Properties:
-      Metadata:
+    Metadata:
         cfn_nag:
           rules_to_suppress:
           - id: W28
             reason: "Works as designed"
+          - id: W74
+            reason: "Encrypted using AWS-owned CMK.  Customers may change this to their CMK if desired."
+  TagTamerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -130,6 +129,11 @@ Resources:
             Action:
               - 'sts:AssumeRole'
       RoleName: TagTamerRole
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
   TagTamerInstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -143,11 +147,6 @@ Resources:
     Properties:
       GroupDescription: 'Allow inbound https traffic & outbound traffic initiated by Tag Tamer web app'
       GroupName: SG-TagTamer
-      Metadata:
-        cfn_nag:
-          rules_to_suppress:
-          - id: W28
-            reason: "Works as designed"
       VpcId: !Ref VPCID
       SecurityGroupIngress:
         #- IpProtocol: tcp
@@ -164,10 +163,12 @@ Resources:
           CidrIp: !Ref CIDRIPRange
       SecurityGroupEgress:
         - IpProtocol: tcp
-          CidrIp: '0.0.0.0/'
-      Metadata:
+          CidrIp: '0.0.0.0/0'
+    Metadata:
         cfn_nag:
           rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
           - id: W5
             reason: "Works as designed"
           - id: W36
@@ -216,7 +217,7 @@ Resources:
               - 'cognito-identity:GetId'
               - 'cognito-identity:GetCredentialsForIdentity'
             Effect: Allow
-            Resource: !Sub 'arn:aws:cognito-identity:${AWS::Region}:${AWS::AccountId}:identitypool/${TagTamerCognitoIdentityPool}
+            Resource: !Sub 'arn:aws:cognito-identity:${AWS::Region}:${AWS::AccountId}:identitypool/${TagTamerCognitoIdentityPool}'
           - Sid: SSMParameters
             Action:
               - 'ssm:GetParametersByPath'
@@ -367,7 +368,11 @@ Resources:
         - ClientId: !Ref TagTamerUserPoolClient
           ProviderName: !GetAtt TagTamerCognitoUserPool.ProviderName
       IdentityPoolName: !Ref TagTamerIdentityPoolName
-  
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W57
+            reason: "Works as designed.  All authentication based on asserted identity JWT."
   TagTamerCognitoDefaultRegion:
     Type: AWS::SSM::Parameter
     Properties:
@@ -451,11 +456,6 @@ Resources:
     Type: 'AWS::IAM::Role'
     Properties:
       RoleName: TagTamer-LambdaRole
-      Metadata:
-        cfn_nag:
-          rules_to_suppress:
-          - id: W28
-            reason: "Works as designed"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -465,6 +465,11 @@ Resources:
                 - lambda.amazonaws.com
             Action:
               - 'sts:AssumeRole'
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
     DependsOn: TagTamerUserPoolClient
 
   UserPoolClientLambda:
@@ -498,16 +503,16 @@ Resources:
             - ' }'
             - '};'
       Handler: index.handler
-      Metadata:
-        cfn_nag:
-          rules_to_suppress:
-        -   id: W58
-            reason: "Works as designed"
       Runtime: nodejs10.x
-      Timeout: '300'
+      Timeout: 300
       Role: !GetAtt 
         - UserPoolClientRole
         - Arn
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W58
+            reason: "Works as designed"
     DependsOn: UserPoolClientRole
 
   UserPoolClientLambdaPolicy:

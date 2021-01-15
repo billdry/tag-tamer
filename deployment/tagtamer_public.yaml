@@ -72,6 +72,11 @@ Resources:
       Tags:
       - Key: Name
         Value: Tagtamer-VPC
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W60
+            reason: "Customers may enable VPC flow logs for this VPC if they choose."
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -223,6 +228,13 @@ Resources:
       Tags:
       - Key: Name
         Value: Tagtamer-PublicLoadBalancerSecurityGroup
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W5
+            reason: "Works as designed"
+          - id: W36
+            reason: "This Security Group includes a description."
 
   PublicLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -237,6 +249,13 @@ Resources:
       Tags:
       - Key: Name
         Value: Tagtamer-PublicLoadBalancer
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
+          - id: W52
+            reason: "Tag Tamer customers may enable access logs if they choose."
 
   HTTP443Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -251,7 +270,11 @@ Resources:
         Ref: PublicLoadBalancer
       Port: 443
       Protocol: HTTPS
-
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W55
+            reason: "Tag Tamer customers may specify the TLS 1.2 ciphers they want to support at or after deployment."
 
   TagtamerListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -291,26 +314,46 @@ Resources:
       AttributeDefinitions:
         - AttributeName: tag_group_name
           AttributeType: S
+      BillingMode: 'PROVISIONED'
       KeySchema:
         - AttributeName: tag_group_name
           KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: True
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
       TableName: tag_tamer_tag_groups
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W74
+            reason: "Encrypted using AWS-owned CMK.  Customers may change this to their CMK if desired."
+          - id: W28
+            reason: "Works as designed"
   TagTamerRolesTable:
     Type: 'AWS::DynamoDB::Table'
     Properties:
       AttributeDefinitions:
         - AttributeName: role_arn
           AttributeType: S
+      BillingMode: 'PROVISIONED'
       KeySchema:
         - AttributeName: role_arn
           KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: True
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
       TableName: tag_tamer_roles
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W74
+            reason: "Encrypted using AWS-owned CMK.  Customers may change this to their CMK if desired."
+          - id: W28
+            reason: "Works as designed"
   TagTamerRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -327,6 +370,11 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
   TagTamerInstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -357,6 +405,19 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: tcp
           CidrIp: '0.0.0.0/0'
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W2
+            reason: "Tag Tamer customer may limit ingress CIDR to specific IP ranges for their users."
+          - id: W28
+            reason: "Works as designed"
+          - id: W5
+            reason: "Works as designed"
+          - id: W9
+            reason: "Works as designed"
+          - id: W36
+            reason: "This Security Group includes a description."
   EC2Instance:
     Type: 'AWS::EC2::Instance'
     Properties:
@@ -408,7 +469,7 @@ Resources:
               - 'cognito-identity:GetId'
               - 'cognito-identity:GetCredentialsForIdentity'
             Effect: Allow
-            Resource: !Sub 'arn:aws:cognito-identity:${AWS::Region}:${AWS::AccountId}:identitypool/${TagTamerCognitoIdentityPool}
+            Resource: !Sub 'arn:aws:cognito-identity:${AWS::Region}:${AWS::AccountId}:identitypool/${TagTamerCognitoIdentityPool}'
           - Sid: SSMParameters
             Action:
               - 'ssm:GetParametersByPath'
@@ -679,6 +740,11 @@ Resources:
                 - lambda.amazonaws.com
             Action:
               - 'sts:AssumeRole'
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W28
+            reason: "Works as designed"
     DependsOn: TagTamerUserPoolClient
 
   UserPoolClientLambda:
@@ -717,6 +783,11 @@ Resources:
       Role: !GetAtt 
         - UserPoolClientRole
         - Arn
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W58
+            reason: "Works as designed"
     DependsOn: UserPoolClientRole
 
   UserPoolClientLambdaPolicy:
@@ -777,7 +848,11 @@ Resources:
         - ClientId: !Ref TagTamerUserPoolClient
           ProviderName: !GetAtt TagTamerCognitoUserPool.ProviderName
       IdentityPoolName: !Ref TagTamerIdentityPoolName
-
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: W57
+            reason: "Works as designed.  All authentication based on asserted identity JWT."
 Outputs:
   InstanceId:
     Description: InstanceId of the newly created EC2 instance
