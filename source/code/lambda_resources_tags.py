@@ -154,10 +154,6 @@ class lambda_resources_tags:
 
             def _union_tfff_tftf_fftf(tag_dict, function_name, function_arn):
                 if self.filter_tags.get('tag_key1') in tag_dict or self.filter_tags.get('tag_key2') in tag_dict:
-                    print(function_name)
-                    print(self.filter_tags.get('tag_key1'))
-                    print(self.filter_tags.get('tag_key2'))
-                    print(tag_dict)
                     resource_inventory[function_arn] = function_name
                 
             def _union_tttf(tag_dict, function_name, function_arn):
