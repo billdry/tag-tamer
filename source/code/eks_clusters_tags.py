@@ -335,31 +335,35 @@ class eks_clusters_tags:
             client = this_session.client(self.resource_type, region_name=self.region)
             # Get all the EKS clusters in the region
             my_clusters = client.list_clusters()
-            for item in my_clusters['clusters']:
-                cluster_arn = client.describe_cluster(
-                    name=item
-                )['cluster']['arn']
-                try:
-                    # Get all the tags for a given EKS Cluster
-                    response = client.list_tags_for_resource(
-                        resourceArn=cluster_arn
-                    )
+            if len(my_clusters['clusters']) == 0:
+                tag_keys_inventory.append("No tag keys found")
+                my_status.warning(message='No Amazon EKS clusters found!')
+            else:
+                for item in my_clusters['clusters']:
+                    cluster_arn = client.describe_cluster(
+                        name=item
+                    )['cluster']['arn']
                     try:
-                        # Add all tag keys to the list
-                        for tag_key, _ in response['Tags'].items():       
-                            if not re.search("^aws:", tag_key):
-                                tag_keys_inventory.append(tag_key)
-                        my_status.success(message='Resources and tags found!')
-                    except:
+                        # Get all the tags for a given EKS Cluster
+                        response = client.list_tags_for_resource(
+                            resourceArn=cluster_arn
+                        )
+                        try:
+                            # Add all tag keys to the list
+                            for tag_key, _ in response['Tags'].items():       
+                                if not re.search("^aws:", tag_key):
+                                    tag_keys_inventory.append(tag_key)
+                            my_status.success(message='Resources and tags found!')
+                        except:
+                            tag_keys_inventory.append("No tag keys found")
+                            my_status.error(message='You are not authorized to view these resources')
+                    except botocore.exceptions.ClientError as error:
+                        log.error("Boto3 API returned error: {}".format(error))
                         tag_keys_inventory.append("No tag keys found")
-                        my_status.error(message='You are not authorized to view these resources')
-                except botocore.exceptions.ClientError as error:
-                    log.error("Boto3 API returned error: {}".format(error))
-                    tag_keys_inventory.append("No tag keys found")
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
-                        my_status.error(message='You are not authorized to view these resources')
-                    else:
-                        my_status.error()
+                        if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
+                            my_status.error(message='You are not authorized to view these resources')
+                        else:
+                            my_status.error()
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             tag_keys_inventory.append("No tag keys found")
@@ -395,33 +399,36 @@ class eks_clusters_tags:
             client = this_session.client(self.resource_type, region_name=self.region)
             # Get all the EKS clusters in the region
             my_clusters = client.list_clusters()
-            for item in my_clusters['clusters']:
-                cluster_arn = client.describe_cluster(
-                    name=item
-                )['cluster']['arn']
-                try:
-                    # Get all the tags for a given EKS Cluster
-                    response = client.list_tags_for_resource(
-                        resourceArn=cluster_arn
-                    )
+            if len(my_clusters['clusters']) == 0:
+                tag_values_inventory.append("No tag values found")
+                my_status.warning(message='No Amazon EKS clusters found!')
+            else:
+                for item in my_clusters['clusters']:
+                    cluster_arn = client.describe_cluster(
+                        name=item
+                    )['cluster']['arn']
                     try:
-                        # Add all tag keys to the list
-                        for tag_key, tag_value in response['Tags'].items():       
-                            # Exclude any AWS-applied tags which begin with "aws:"
-                            if not re.search("^aws:", tag_key):
-                                tag_values_inventory.append(tag_value)
-                    except:
+                        # Get all the tags for a given EKS Cluster
+                        response = client.list_tags_for_resource(
+                            resourceArn=cluster_arn
+                        )
+                        try:
+                            # Add all tag keys to the list
+                            for tag_key, tag_value in response['Tags'].items():       
+                                # Exclude any AWS-applied tags which begin with "aws:"
+                                if not re.search("^aws:", tag_key):
+                                    tag_values_inventory.append(tag_value)
+                                    my_status.success(message='Resources and tags found!')            
+                        except:
+                            tag_values_inventory.append("")
+                            my_status.warning(message='No tags found for this resource.')
+                    except botocore.exceptions.ClientError as error:
+                        log.error("Boto3 API returned error: {}".format(error))
                         tag_values_inventory.append("")
-                        my_status.warning(message='No tags found for this resource.')
-                except botocore.exceptions.ClientError as error:
-                    log.error("Boto3 API returned error: {}".format(error))
-                    tag_values_inventory.append("")
-                    tag_values_inventory.append("")
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
-                        my_status.error(message='You are not authorized to view these resources')
-                    else:
-                        my_status.error()
-            my_status.success(message='Resources and tags found!')            
+                        if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
+                            my_status.error(message='You are not authorized to view these resources')
+                        else:
+                            my_status.error()
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             tag_values_inventory.append("")

@@ -426,6 +426,10 @@ def tag_based_search():
                         resource_type=request.args.get('resource_type'),
                         tag_keys=selected_tag_keys, 
                         tag_values=selected_tag_values)
+            elif execution_status_tag_keys.get('alert_level') == 'warning' or execution_status_tag_values.get('alert_level') == 'warning':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash(execution_status_tag_keys['status_message'], execution_status_tag_keys['alert_level'])
+                return render_template('blank.html')
             else:
                 log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 flash(execution_status_tag_keys['status_message'], execution_status_tag_keys['alert_level'])
