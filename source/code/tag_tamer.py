@@ -484,7 +484,7 @@ def tag_resources():
         flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
 
-# Delivers HTML UI to assign tags from Tag Groups to chosen AWS resources
+# Applies selected tags to selected resources then displays resources with updated tags
 @app.route('/apply-tags-to-resources', methods=['POST'])
 @aws_auth.authentication_required
 def apply_tags_to_resources():
