@@ -56,6 +56,7 @@ class resources_tags:
         
         client = this_session.client(self.resource_type, region_name=self.region)
 
+        # Nested function to get resources that match user-selected tag keys & values
         def _get_filtered_resources(client_command):
             
             filters_list = list()
@@ -63,9 +64,12 @@ class resources_tags:
             # Issue Boto3 method using client, client command & filters list
             def _boto3_get_method():
                 try:
-                    filtered_resources = getattr(client, client_command)(
-                        Filters=filters_list
-                    )
+                    if filters_list:
+                        filtered_resources = getattr(client, client_command)(
+                            Filters=filters_list
+                        )
+                    else:
+                        filtered_resources = getattr(client, client_command)()
                     my_status.success(message='Resources Found!')
                     log.debug("The filtered resources are: {}".format(filtered_resources))
                     return filtered_resources
@@ -83,6 +87,34 @@ class resources_tags:
                     return filtered_resources
             
             # Add any selected tag keys and values to the AWS resource filter "filters_list"
+            
+            ## Get all instance or volume resources that have no tags applied
+            if self.filter_tags.get('tag_key1') == '<No tags applied>' or \
+                self.filter_tags.get('tag_key2') == '<No tags applied>':
+                filters_list.clear()
+                requested_resources = _boto3_get_method()
+                if self.unit == 'instances':
+                    if requested_resources.get('Reservations'):
+                        for item in requested_resources['Reservations']:
+                            if item.get('Instances'):
+                                untagged_resources = list()
+                                for resource in item['Instances']:
+                                    if not resource.get('Tags'):
+                                        untagged_resources.append(resource)
+                                item['Instances'] = untagged_resources
+                if self.unit == 'Volumes':
+                    if requested_resources.get('Reservations'):
+                        for item in requested_resources['Reservations']:
+                            if item.get('Volumes'):
+                                untagged_resources = list()
+                                for resource in item['Volumes']:
+                                    if not resource.get('Tags'):
+                                        untagged_resources.append(resource)
+                                item['Volumes'] = untagged_resources
+                returned_dict = dict()
+                returned_dict['results_1'] = requested_resources
+                return returned_dict
+
             if self.filter_tags.get('conjunction') == 'AND':
                 if self.filter_tags.get('tag_key1'):
                     tag_dict = dict()
@@ -159,6 +191,8 @@ class resources_tags:
             else:
                     return None
 
+        # Nested function to get all resources that have a tag with key 'name' or 'Name'
+        # and values are selected
         def _get_named_resources(client_command):
             try:
                 named_resources = getattr(client, client_command)(
@@ -197,9 +231,10 @@ class resources_tags:
                         for item in results['Reservations']:
                             for resource in item['Instances']:
                                 named_resource_inventory[resource['InstanceId']] = 'no name found'
-                                for tag in resource['Tags']:
-                                    if(tag['Key'].lower() == 'name'):
-                                        named_resource_inventory[resource['InstanceId']] = tag['Value']
+                                if resource.get('Tags'):
+                                    for tag in resource['Tags']:
+                                        if(tag['Key'].lower() == 'name'):
+                                            named_resource_inventory[resource['InstanceId']] = tag['Value']
 
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error. function: {} - {}".format(sys._getframe().f_code.co_name, error))
@@ -231,9 +266,10 @@ class resources_tags:
                     for _, results in filtered_resources.items():
                         for item in results['Volumes']:
                             named_resource_inventory[item['VolumeId']] = 'no name found'
-                            for tag in item['Tags']:
-                                if(tag['Key'].lower() == 'name'):
-                                    named_resource_inventory[item['VolumeId']] = tag['Value']
+                            if item.get('Tags'):
+                                for tag in item['Tags']:
+                                    if(tag['Key'].lower() == 'name'):
+                                        named_resource_inventory[item['VolumeId']] = tag['Value']
 
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error. function: {} - {}".format(sys._getframe().f_code.co_name, error))
@@ -441,6 +477,8 @@ class resources_tags:
     def get_tag_keys(self, **session_credentials):
         my_status = execution_status()
         sorted_tag_keys_inventory = list()
+        # Give users ability to find resources with no tags applied
+        sorted_tag_keys_inventory.append('<No tags applied>')
 
         self.session_credentials = {}
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
