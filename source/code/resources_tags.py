@@ -99,18 +99,18 @@ class resources_tags:
                             if item.get('Instances'):
                                 untagged_resources = list()
                                 for resource in item['Instances']:
+                                    # Untagged resources have no Tags attribute
                                     if not resource.get('Tags'):
                                         untagged_resources.append(resource)
                                 item['Instances'] = untagged_resources
-                if self.unit == 'Volumes':
-                    if requested_resources.get('Reservations'):
-                        for item in requested_resources['Reservations']:
-                            if item.get('Volumes'):
-                                untagged_resources = list()
-                                for resource in item['Volumes']:
-                                    if not resource.get('Tags'):
-                                        untagged_resources.append(resource)
-                                item['Volumes'] = untagged_resources
+                if self.unit == 'volumes':
+                    if requested_resources.get('Volumes'):
+                        untagged_resources = list()
+                        for resource in requested_resources['Volumes']:
+                            # Untagged resources have no Tags attribute
+                            if not resource.get('Tags'):
+                                untagged_resources.append(resource)
+                        requested_resources['Volumes'] = untagged_resources
                 returned_dict = dict()
                 returned_dict['results_1'] = requested_resources
                 return returned_dict
