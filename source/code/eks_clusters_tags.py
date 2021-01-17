@@ -142,10 +142,14 @@ class eks_clusters_tags:
                                 my_status.error(message='You are not authorized to view these resources')
                             else:
                                 my_status.error()
-                    intersection_combos[(tag_key1_state,
-                        tag_value1_state,
-                        tag_key2_state,
-                        tag_value2_state)](response.get('tags'), item, eks_cluster_arn )
+                    if response.get('tags'):
+                        intersection_combos[(tag_key1_state,
+                            tag_value1_state,
+                            tag_key2_state,
+                            tag_value2_state)](response.get('tags'), item, eks_cluster_arn )
+                    elif self.filter_tags.get('tag_key1') == '<No tags applied>' or \
+                        self.filter_tags.get('tag_key2') == '<No tags applied>':
+                        resource_inventory[eks_cluster_arn] = item
                 my_status.success(message='Resources and tags found!')    
             except botocore.exceptions.ClientError as error:
                 log.error("Boto3 API returned error: {}".format(error))
@@ -231,11 +235,15 @@ class eks_clusters_tags:
                         response = client.list_tags_for_resource(
                             resourceArn=eks_cluster_arn
                         )
-                        or_combos[(tag_key1_state,
-                            tag_value1_state,
-                            tag_key2_state,
-                            tag_value2_state)](response.get('tags'), item, eks_cluster_arn)
-                    
+                        if response.get('tags'):
+                            or_combos[(tag_key1_state,
+                                tag_value1_state,
+                                tag_key2_state,
+                                tag_value2_state)](response.get('tags'), item, eks_cluster_arn)
+                        elif self.filter_tags.get('tag_key1') == '<No tags applied>' or \
+                            self.filter_tags.get('tag_key2') == '<No tags applied>':
+                            resource_inventory[eks_cluster_arn] = item
+
                     except botocore.exceptions.ClientError as error:
                             log.error("Boto3 API returned error: {}".format(error))
                             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':

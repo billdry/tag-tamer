@@ -130,11 +130,15 @@ class lambda_resources_tags:
                         response = client.list_tags(
                             Resource=item['FunctionArn']
                         )
-                        intersection_combos[(tag_key1_state,
-                            tag_value1_state,
-                            tag_key2_state,
-                            tag_value2_state)](response.get('Tags'), item['FunctionName'], item['FunctionArn'])
-                    
+                        if response.get('Tags'):
+                            intersection_combos[(tag_key1_state,
+                                tag_value1_state,
+                                tag_key2_state,
+                                tag_value2_state)](response.get('Tags'), item['FunctionName'], item['FunctionArn'])
+                        elif self.filter_tags.get('tag_key1') == '<No tags applied>' or \
+                            self.filter_tags.get('tag_key2') == '<No tags applied>':
+                            resource_inventory[item['FunctionArn']] = item['FunctionName']
+
                     except botocore.exceptions.ClientError as error:
                         log.error("Boto3 API returned error: {}".format(error))
                         if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
@@ -219,11 +223,15 @@ class lambda_resources_tags:
                         response = client.list_tags(
                             Resource=item['FunctionArn']
                         )
-                        or_combos[(tag_key1_state,
-                            tag_value1_state,
-                            tag_key2_state,
-                            tag_value2_state)](response.get('Tags'), item['FunctionName'], item['FunctionArn'])
-                    
+                        if response.get('Tags'):
+                            or_combos[(tag_key1_state,
+                                tag_value1_state,
+                                tag_key2_state,
+                                tag_value2_state)](response.get('Tags'), item['FunctionName'], item['FunctionArn'])
+                        elif self.filter_tags.get('tag_key1') == '<No tags applied>' or \
+                            self.filter_tags.get('tag_key2') == '<No tags applied>':
+                            resource_inventory[item['FunctionArn']] = item['FunctionName']
+
                     except botocore.exceptions.ClientError as error:
                         log.error("Boto3 API returned error: {}".format(error))
                         if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
@@ -309,6 +317,8 @@ class lambda_resources_tags:
     def get_lambda_tag_keys(self, **session_credentials):
         my_status = execution_status()
         tag_keys_inventory = list()
+        # Give users ability to find resources with no tags applied
+        tag_keys_inventory.append('<No tags applied>')
 
         self.session_credentials = dict()
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']

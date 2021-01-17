@@ -86,7 +86,6 @@ class resources_tags:
                     filtered_resources = dict()
                     return filtered_resources
             
-            # Add any selected tag keys and values to the AWS resource filter "filters_list"
             
             ## Get all instance or volume resources that have no tags applied
             if self.filter_tags.get('tag_key1') == '<No tags applied>' or \
@@ -115,6 +114,7 @@ class resources_tags:
                 returned_dict['results_1'] = requested_resources
                 return returned_dict
 
+            # Add any selected tag keys and values to the AWS resource filter "filters_list"
             if self.filter_tags.get('conjunction') == 'AND':
                 if self.filter_tags.get('tag_key1'):
                     tag_dict = dict()
@@ -192,7 +192,8 @@ class resources_tags:
                     return None
 
         # Nested function to get all resources that have a tag with key 'name' or 'Name'
-        # and values are selected
+        # and values are selected.  This is used to quickly gather the "name tags" of resources
+        # for easier identification in the Tag Tamer web UI 
         def _get_named_resources(client_command):
             try:
                 named_resources = getattr(client, client_command)(
@@ -242,6 +243,7 @@ class resources_tags:
                 try:
                     named_resources = _get_named_resources('describe_instances')
                     selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                    # Get all the resource ID's then add actual names to those having existing "name tags"
                     for resource in selected_resource_type.instances.all():
                         named_resource_inventory[resource.id] = 'no name found'
                     for item in named_resources['Reservations']:
@@ -277,6 +279,7 @@ class resources_tags:
                 try:
                     named_resources = _get_named_resources('describe_volumes')
                     selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                    # Get all the resource ID's then add actual names to those having existing "name tags"
                     for resource in selected_resource_type.volumes.all():
                         named_resource_inventory[resource.id] = 'no name found'
                     for item in named_resources['Volumes']:
@@ -331,6 +334,10 @@ class resources_tags:
                                 else:
                                     if tag.get('Key') == self.filter_tags.get('tag_key2'):
                                         named_resource_inventory[resource.name] = resource.name
+                    ## Get all buckets that have no tags applied
+                    elif self.filter_tags.get('tag_key1') == '<No tags applied>' or \
+                        self.filter_tags.get('tag_key2') == '<No tags applied>':
+                        named_resource_inventory[resource.name] = resource.name
             else:
                 try:
                     for resource in selected_resource_type.buckets.all():   
