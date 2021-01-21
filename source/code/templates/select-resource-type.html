@@ -23,8 +23,9 @@ SPDX-License-Identifier: MIT-0 -->
     <h3>Please select a resource type to tag</h3>
     <br />
     <div class="container">
-      <form method="post" action="{{ url_for(destination_route) }}">
+      <form method="post" action="{{ url_for('tag_filter') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="destination_route" value="{{ destination_route }}"/>
         <div class="form-check">
           <input
             class="form-check-input"

@@ -220,20 +220,38 @@ def found_tags():
     user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     if user_email and session_credentials.get('AccessKeyId'):
-        resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-        log.debug('function: {} - Received the request arguments'.format(sys._getframe().f_code.co_name))
-        inventory = resources_tags(resource_type, unit, region)
-        sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
-        flash(execution_status['status_message'], execution_status['alert_level'])
-        if execution_status.get('alert_level') == 'success':
-            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-            return render_template('found-tags.html', inventory=sorted_tagged_inventory)
-        elif execution_status.get('alert_level') == 'warning':
-            log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-            return render_template('blank.html')
+        if request.form.get('resource_type'):
+            filter_elements = dict()
+            if request.form.get('tag_key1'):
+                filter_elements['tag_key1'] = request.form.get('tag_key1')
+            if request.form.get('tag_value1'):
+                filter_elements['tag_value1'] = request.form.get('tag_value1')
+            if request.form.get('tag_key2'):
+                filter_elements['tag_key2'] = request.form.get('tag_key2')
+            if request.form.get('tag_value2'):
+                filter_elements['tag_value2'] = request.form.get('tag_value2')
+            if request.form.get('conjunction'):
+                filter_elements['conjunction'] = request.form.get('conjunction')
+            resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+            log.debug('function: {} - Received the request arguments'.format(sys._getframe().f_code.co_name))
+            inventory = resources_tags(resource_type, unit, region)
+            chosen_resources = OrderedDict()
+            chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
+            sorted_tagged_inventory, execution_status = inventory.get_resources_tags(chosen_resources, **session_credentials)
+            flash(execution_status['status_message'], execution_status['alert_level'])
+            if execution_status.get('alert_level') == 'success':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                return render_template('found-tags.html', inventory=sorted_tagged_inventory)
+            elif execution_status.get('alert_level') == 'warning':
+                log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                return render_template('blank.html')
+            else:
+                log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+                flash('You are not authorized to view these resources', 'danger')
+                return render_template('blank.html')
         else:
             log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-            flash('You are not authorized to view these resources', 'danger')
+            flash('An error occurred.  Please contact your Tag Tamer administrator for assistance.', 'danger')
             return render_template('blank.html')
     else:
         log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
@@ -385,7 +403,7 @@ def select_resource_type():
         log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source))
         next_route  = request.form.get('next_route')
         if not next_route:
-            next_route = 'tag_filter'
+            next_route = 'found_tags'
         return render_template('select-resource-type.html', destination_route=next_route)
     else:
         log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
@@ -399,10 +417,10 @@ def tag_filter():
     user_email, user_source = get_user_email_ip(request)
     if user_email:
         log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source)) 
-        if request.form.get('resource_type'):
-            return render_template('search-tag-resources-container.html', resource_type=request.form.get('resource_type')) 
+        if request.form.get('resource_type') and request.form.get('destination_route'):
+            return render_template('search-tag-resources-container.html', destination_route=request.form.get('destination_route') ,resource_type=request.form.get('resource_type')) 
         else:
-            return render_template('select-resource-type.html', destination_route='tag_filter')
+            return render_template('select-resource-type.html', destination_route='tag_display')
     else:
         log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
         flash('You are not authorized to view these resources', 'danger')
@@ -422,7 +440,8 @@ def tag_based_search():
             selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**session_credentials)
             if execution_status_tag_keys.get('alert_level') == 'success' and execution_status_tag_values.get('alert_level') == 'success':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-                return render_template('tag-search.html', 
+                return render_template('tag-search.html',
+                        destination_route=request.args.get('destination_route'),
                         resource_type=request.args.get('resource_type'),
                         tag_keys=selected_tag_keys, 
                         tag_values=selected_tag_values)
@@ -478,6 +497,7 @@ def tag_resources():
                 return render_template('blank.html')
         else:
             log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
+            flash('An error occurred.  Please contact your Tag Tamer administrator for assistance.', 'danger')
             return render_template('blank.html')
     else:
         log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))

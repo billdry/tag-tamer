@@ -256,7 +256,7 @@ class lambda_resources_tags:
     # method - get_lambda_resources_tags
     # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
     # No input arguments
-    def get_lambda_resources_tags(self, **session_credentials):
+    def get_lambda_resources_tags(self, chosen_resources, **session_credentials):
         my_status = execution_status()
         # Instantiate dictionaries to hold resources & their tags
         tagged_resource_inventory = dict()
@@ -271,17 +271,12 @@ class lambda_resources_tags:
             aws_session_token=self.session_credentials['SessionToken'])
 
         try:
-            client = this_session.client(self.resource_type, region_name=self.region)
-            # Get all the Lambda functions in the region
-            my_functions = client.list_functions()
-            if not my_functions.get('Functions'):
-                tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
-                my_status.warning(message='No AWS Lambda functions found!')
-            else:
-                for item in my_functions['Functions']:
+            if chosen_resources:
+                client = this_session.client(self.resource_type, region_name=self.region)
+                for resource_id_name in chosen_resources:
                     resource_tags = dict()
                     sorted_resource_tags = dict()
-                    function_arn = item['FunctionArn']
+                    function_arn = resource_id_name[0]
                     try:
                         # Get all the tags for a given Lambda function
                         response = client.list_tags(
@@ -294,13 +289,15 @@ class lambda_resources_tags:
                         log.error("Boto3 API returned error: {}".format(error))
                         resource_tags["No Tags Found"] = "No Tags Found"
                         if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
-                            
                             my_status.error(message='You are not authorized to view these resources')
                         else:
                             my_status.error()
                     sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
-                    tagged_resource_inventory[item['FunctionArn']] = sorted_resource_tags
+                    tagged_resource_inventory[resource_id_name[0]] = sorted_resource_tags
                     my_status.success(message='Resources and tags found!')
+            else:
+                tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
+                my_status.warning(message='No AWS Lambda functions found!')
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
