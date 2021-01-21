@@ -11,10 +11,12 @@ import boto3, botocore
 from botocore import exceptions
 # Import collections to use ordered dictionaries for storage
 from collections import OrderedDict
-# Import AWS EKS clusters resources & rags getters & setters
-from eks_clusters_tags import *
+# Impport csv to create output files
+import csv
+# Import AWS EKS clusters resources & tags getters & setters
+from eks_clusters_tags import eks_clusters_tags
 # Import AWS Lambda resources & tags getters & setters
-from lambda_resources_tags import * 
+from lambda_resources_tags import lambda_resources_tags 
 # Import logging module
 import logging
 # Import Python's regex module to filter Boto3's API responses 
@@ -373,9 +375,10 @@ class resources_tags:
             
     # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
     # No input arguments
-    def get_resources_tags(self, chosen_resources, **session_credentials):
+    def get_resources_tags(self, chosen_resources, user_name, **session_credentials):
         log.debug('The received session credentials are: %s', session_credentials)
         my_status = execution_status()
+        returned_status = dict()
         # Instantiate dictionaries to hold resources & their tags
         tagged_resource_inventory = {}
         sorted_tagged_resource_inventory = {}
@@ -388,6 +391,36 @@ class resources_tags:
             aws_access_key_id=self.session_credentials['AccessKeyId'],
             aws_secret_access_key=self.session_credentials['SecretKey'],
             aws_session_token=self.session_credentials['SessionToken'])
+
+        # Create a csv file of returned results for downloading
+        def _download_csv(inventory, user_name):
+            download_file = "./downloads/" + user_name + "-download.csv"
+            file_contents = list()
+            header_row = list()
+            header_row.append("Resource ID")
+            max_tags = 0
+            for resource_id, tags in inventory.items():
+                row = list()
+                if len(tags) > max_tags:
+                    max_tags = len(tags)
+                row.append(resource_id)
+                for key, value in tags.items():
+                    row.append(key)
+                    row.append(value)
+                file_contents.append(row)
+            iterator = 1
+            while iterator <= max_tags:
+                tag_key_header = "Tag Key" + str(iterator)
+                header_row.append(tag_key_header)
+                tag_value_header = "Tag Value" + str(iterator)
+                header_row.append(tag_value_header)
+                iterator += 1
+            with open(download_file, "w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow(header_row)
+                writer.writerows(file_contents)
+            file.close()
+            return download_file
         
         # Interate through resources & inject resource ID's with user-defined tag key:value pairs per resource into a nested dictionary
         # indexed by resource ID
@@ -511,19 +544,22 @@ class resources_tags:
                     my_status.error(message='You are not authorized to view these resources')
                 else:
                     my_status.error()
+
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            tagged_resource_inventory, lambda_resources_status = functions_inventory.get_lambda_resources_tags(chosen_resources, **self.session_credentials)
-            return tagged_resource_inventory, lambda_resources_status
+            tagged_resource_inventory, returned_status = functions_inventory.get_lambda_resources_tags(chosen_resources, **self.session_credentials)
         
         elif self.unit == 'clusters':
             clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
-            tagged_resource_inventory, eks_clusters_status = clusters_inventory.get_eks_clusters_tags(chosen_resources, **self.session_credentials)
-            return tagged_resource_inventory, eks_clusters_status
+            tagged_resource_inventory, returned_status = clusters_inventory.get_eks_clusters_tags(chosen_resources, **self.session_credentials)
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
-
-        return sorted_tagged_resource_inventory, my_status.get_status()
+        download_file = _download_csv(sorted_tagged_resource_inventory, user_name)
+        
+        if not returned_status:
+            returned_status = my_status.get_status()
+        
+        return sorted_tagged_resource_inventory, returned_status
 
     # Getter method retrieves every tag:key for object's resource type
     # No input arguments

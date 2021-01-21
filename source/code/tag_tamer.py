@@ -39,7 +39,7 @@ from utilities import get_resource_type_unit, verify_jwt
 
 # Import flask framework module & classes to build API's
 import flask, flask_wtf
-from flask import Flask, flash, jsonify, make_response, redirect, render_template, request, url_for
+from flask import Flask, flash, jsonify, make_response, redirect, render_template, request, send_file, url_for
 # Use only flask_awscognito version 1.2.8 or higher from Tag Tamer
 from flask_awscognito import AWSCognitoAuthentication
 #from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, set_access_cookies, unset_jwt_cookies
@@ -200,7 +200,7 @@ def actions():
     return render_template('actions.html')    
 
 # Get response delivers HTML UI to select AWS resource types that Tag Tamer will find
-# Post action initiates tag finding for user selected AWS resource types
+# Post action initiates tag finding for user-selected AWS resource types
 @app.route('/find-tags', methods=['GET'])
 @aws_auth.authentication_required
 def find_tags():
@@ -237,7 +237,8 @@ def found_tags():
             inventory = resources_tags(resource_type, unit, region)
             chosen_resources = OrderedDict()
             chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
-            sorted_tagged_inventory, execution_status = inventory.get_resources_tags(chosen_resources, **session_credentials)
+            claims = aws_auth.claims
+            sorted_tagged_inventory, execution_status = inventory.get_resources_tags(chosen_resources, claims.get('username'), **session_credentials)
             flash(execution_status['status_message'], execution_status['alert_level'])
             if execution_status.get('alert_level') == 'success':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
@@ -257,6 +258,23 @@ def found_tags():
         log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
         flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
+
+# Download CSV file of found tags
+@app.route('/download', methods=['GET'])
+@aws_auth.authentication_required
+def download_file():
+    user_email, user_source = get_user_email_ip(request)
+    if user_email:
+        log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source))
+        claims = aws_auth.claims
+        download_file = "./downloads/" + claims.get('username') + "-download.csv"
+        return send_file(download_file, as_attachment=True)
+    else:
+        log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
+        flash('You are not authorized to download these resources', 'danger')
+        return render_template('blank.html')
+
+
 
 # Delivers HTML UI to select AWS resource types to manage Tag Groups for
 @app.route('/type-to-tag-group', methods=['GET'])

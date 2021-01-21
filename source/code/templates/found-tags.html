@@ -32,6 +32,17 @@ SPDX-License-Identifier: MIT-0 -->
     {% endfor %}
     {% endif %}
     {% endwith %}
+    <table class="table table-borderless">
+      <tbody>
+        <tr>
+          <td>
+            <form method="get" action="{{ url_for('download_file') }}">
+              <button type="submit" class="btn btn-primary btn-lg">Download Results</button>
+            </form>
+          </td>
+        </tr>
+      </tbody>
+    </table>
     <table style="width: 800px" class="table table-bordered table-striped">
       {% for instance, tags in inventory.items() %}
       <tr>
@@ -66,9 +77,22 @@ SPDX-License-Identifier: MIT-0 -->
     </table>
 
     <div class="container">
-      <form method="get" action="{{ url_for('actions') }}">
-        <button type="submit" class="btn btn-primary btn-lg">Home</button>
-      </form>
+      <table class="table table-borderless">
+        <tbody>
+          <tr>
+              <td>
+                <form method="get" action="{{ url_for('actions') }}">
+                  <button type="submit" class="btn btn-primary btn-lg">Home</button>
+                </form>
+              </td>
+              <td>
+                <form method="get" action="{{ url_for('download_file') }}">
+                <button type="submit" class="btn btn-primary btn-lg">Download Results</button>
+              </form>
+            </td>
+          </tr>
+        </tbody>
+      </table>  
     </div>
     <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
