@@ -29,6 +29,9 @@ def get_resource_type_unit(type):
         elif type == "lambda":
             resource_type = 'lambda'
             unit = 'functions'
+        elif type == "rds":
+            resource_type = 'rds'
+            unit = 'rdsclusters'
         elif type == "s3":
             resource_type = 's3'
             unit = 'buckets'
