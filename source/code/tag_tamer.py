@@ -238,7 +238,9 @@ def found_tags():
             chosen_resources = OrderedDict()
             chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
             claims = aws_auth.claims
-            sorted_tagged_inventory, execution_status = inventory.get_resources_tags(chosen_resources, claims.get('username'), **session_credentials)
+            session_credentials["chosen_resources"] = chosen_resources
+            session_credentials["user_name"] = claims.get('username')
+            sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
             flash(execution_status['status_message'], execution_status['alert_level'])
             if execution_status.get('alert_level') == 'success':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
@@ -552,10 +554,18 @@ def apply_tags_to_resources():
             flash(execution_status['status_message'], execution_status['alert_level'])
             if execution_status.get('alert_level') == 'success':
                 updated_sorted_tagged_inventory = dict()
+                filter_tags = dict()
+                all_resource_id_names, all_resource_id_names_status = chosen_resources_to_tag.get_resources(filter_tags, **session_credentials)
+                claims = aws_auth.claims
+                session_credentials["chosen_resources"] = all_resource_id_names
+                session_credentials["user_name"] = claims.get('username')
                 all_sorted_tagged_inventory, all_sorted_tagged_inventory_execution_status = chosen_resources_to_tag.get_resources_tags(**session_credentials)
-                for resource_id in resources_to_tag:
-                    updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]   
-                return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
+                if all_sorted_tagged_inventory_execution_status.get('alert_level') == 'success':
+                    for resource_id in resources_to_tag:
+                        updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]   
+                    return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
+                else:
+                    return render_template('blank.html')
             else:
                 log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 flash('You are not authorized to view these resources', 'danger')

@@ -16,7 +16,9 @@ import csv
 # Import AWS EKS clusters resources & tags getters & setters
 from eks_clusters_tags import eks_clusters_tags
 # Import AWS Lambda resources & tags getters & setters
-from lambda_resources_tags import lambda_resources_tags 
+from lambda_resources_tags import lambda_resources_tags
+# Import AWS RDS resources & tags getters & setters
+from rds_resources_tags import rds_resources_tags 
 # Import logging module
 import logging
 # Import Python's regex module to filter Boto3's API responses 
@@ -40,8 +42,9 @@ class resources_tags:
         self.unit = unit
         self.region = region
 
-    #Returns a sorted list of resources dictionaries for the resource type specified & filter tags submitted
-    #resource dictionaries are resource-id:name if the name tag exists
+    # Returns a sorted list of resource tuples for the resource type specified & filter tags submitted
+    # Returns all resources for a give resource type if no filter tags selected
+    # resource tuples are resource-id,name if the name tag exists
     def get_resources(self, filter_tags, **session_credentials):
         my_status = execution_status()
         self.filter_tags = dict()
@@ -367,6 +370,11 @@ class resources_tags:
             clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
             named_resource_inventory, eks_clusters_status = clusters_inventory.get_eks_clusters_ids(self.filter_tags, **self.session_credentials)
             return named_resource_inventory, eks_clusters_status
+        
+        elif self.unit == "rdsclusters":
+            rds_clusters_inventory = rds_resources_tags(self.resource_type, self.region)
+            named_resource_inventory, rds_clusters_status = rds_clusters_inventory.get_rds_names_ids(self.filter_tags, **self.session_credentials)
+            return named_resource_inventory, rds_clusters_status
 
         # Sort the resources based on the resource's name
         ordered_inventory = OrderedDict()
@@ -375,13 +383,17 @@ class resources_tags:
             
     # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
     # No input arguments
-    def get_resources_tags(self, chosen_resources, user_name, **session_credentials):
+    #def get_resources_tags(self, chosen_resources, user_name, **session_credentials):
+    def get_resources_tags(self, **session_credentials):
         log.debug('The received session credentials are: %s', session_credentials)
         my_status = execution_status()
         returned_status = dict()
         # Instantiate dictionaries to hold resources & their tags
         tagged_resource_inventory = {}
         sorted_tagged_resource_inventory = {}
+
+        self.chosen_resources = session_credentials['chosen_resources']
+        self.user_name = session_credentials['user_name']
 
         self.session_credentials = {}
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
@@ -394,7 +406,7 @@ class resources_tags:
 
         # Create a csv file of returned results for downloading
         def _download_csv(inventory, user_name):
-            download_file = "./downloads/" + user_name + "-download.csv"
+            download_file = "./downloads/" + self.user_name + "-download.csv"
             file_contents = list()
             header_row = list()
             header_row.append("Resource ID")
@@ -426,9 +438,9 @@ class resources_tags:
         # indexed by resource ID
         if self.unit == 'instances':
             try:
-                if chosen_resources:
+                if self.chosen_resources:
                     client = this_session.client(self.resource_type, region_name=self.region)
-                    for resource_id_name in chosen_resources:
+                    for resource_id_name in self.chosen_resources:
                         response = client.describe_tags(
                             Filters=[
                                 {
@@ -553,8 +565,12 @@ class resources_tags:
             clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
             tagged_resource_inventory, returned_status = clusters_inventory.get_eks_clusters_tags(chosen_resources, **self.session_credentials)
 
+        elif self.unit == 'rdsclusters':
+            rds_clusters_inventory = rds_resources_tags(self.resource_type, self.region)
+            tagged_resource_inventory, returned_status = rds_clusters_inventory.get_rds_resources_tags(chosen_resources, **self.session_credentials)
+
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
-        download_file = _download_csv(sorted_tagged_resource_inventory, user_name)
+        download_file = _download_csv(sorted_tagged_resource_inventory, self.user_name)
         
         if not returned_status:
             returned_status = my_status.get_status()
@@ -652,6 +668,11 @@ class resources_tags:
             clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
             sorted_tag_keys_inventory, eks_clusters_status = clusters_inventory.get_eks_clusters_keys(**self.session_credentials) 
             return sorted_tag_keys_inventory, eks_clusters_status
+        
+        elif self.unit == 'rdsclusters':
+            rds_clusters_inventory = rds_resources_tags(self.resource_type, self.region)
+            sorted_tag_keys_inventory, rds_resources_status = rds_clusters_inventory.get_rds_tag_keys(**self.session_credentials)
+            return sorted_tag_keys_inventory, rds_resources_status
 
         #Remove duplicate tags & sort
         sorted_tag_keys_inventory = list(set(sorted_tag_keys_inventory))
@@ -746,6 +767,11 @@ class resources_tags:
             clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
             sorted_tag_values_inventory, eks_clusters_status = clusters_inventory.get_eks_clusters_values(**self.session_credentials) 
             return sorted_tag_values_inventory, eks_clusters_status
+        
+        elif self.unit == 'rdsclusters':
+            rds_clusters_inventory = rds_resources_tags(self.resource_type, self.region)
+            sorted_tag_values_inventory, rds_resources_status = rds_clusters_inventory.get_rds_tag_values(**self.session_credentials)
+            return sorted_tag_values_inventory, rds_resources_status
         
         #Remove duplicate tags & sort
         sorted_tag_values_inventory = list(set(sorted_tag_values_inventory))
@@ -867,5 +893,10 @@ class resources_tags:
             clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
             eks_clusters_status = clusters_inventory.set_eks_clusters_tags(resources_to_tag, chosen_tags, **self.session_credentials) 
             return eks_clusters_status
+        
+        elif self.unit == 'rdsclusters':
+            rds_clusters_inventory = rds_resources_tags(self.resource_type, self.region)
+            rds_resources_status = rds_clusters_inventory.set_rds_resources_tags(resources_to_tag, chosen_tags, **self.session_credentials)
+            return rds_resources_status
 
         return my_status.get_status()
