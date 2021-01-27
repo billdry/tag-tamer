@@ -555,6 +555,7 @@ def apply_tags_to_resources():
             if execution_status.get('alert_level') == 'success':
                 updated_sorted_tagged_inventory = dict()
                 filter_tags = dict()
+                # Call get_resources with empty filter tag dictionary to return all resource ID's & names
                 all_resource_id_names, all_resource_id_names_status = chosen_resources_to_tag.get_resources(filter_tags, **session_credentials)
                 claims = aws_auth.claims
                 session_credentials["chosen_resources"] = all_resource_id_names

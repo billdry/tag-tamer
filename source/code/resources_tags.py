@@ -42,9 +42,9 @@ class resources_tags:
         self.unit = unit
         self.region = region
 
-    # Returns a sorted list of resource tuples for the resource type specified & filter tags submitted
-    # Returns all resources for a give resource type if no filter tags selected
-    # resource tuples are resource-id,name if the name tag exists
+    # Purpose:  Returns a sorted list of resource tuples for the resource type & filter tags submitted
+    #           Returns all resources for a give resource type if no filter tags submitted
+    #           resource tuples are (resource-id, resource-name) if the name tag exists
     def get_resources(self, filter_tags, **session_credentials):
         my_status = execution_status()
         self.filter_tags = dict()
@@ -197,9 +197,9 @@ class resources_tags:
             else:
                     return None
 
-        # Nested function to get all resources that have a tag with key 'name' or 'Name'
-        # and values are selected.  This is used to quickly gather the "name tags" of resources
-        # for easier identification in the Tag Tamer web UI 
+        # Purpose:  Nested function to get all resources that have a tag with key 'name' or 'Name'
+        #           and values are selected.  This is used to quickly gather the "name tags" of resources
+        #           for easier identification in the Tag Tamer web UI 
         def _get_named_resources(client_command):
             try:
                 named_resources = getattr(client, client_command)(
@@ -381,9 +381,8 @@ class resources_tags:
         ordered_inventory = sorted(named_resource_inventory.items(), key=lambda item: item[1])
         return ordered_inventory, my_status.get_status()
             
-    # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
-    # No input arguments
-    #def get_resources_tags(self, chosen_resources, user_name, **session_credentials):
+    # Purpose:  Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
+    # Input arguments are Boto3 session credentials, list of chosen resource tuples & user name making request
     def get_resources_tags(self, **session_credentials):
         log.debug('The received session credentials are: %s', session_credentials)
         my_status = execution_status()
@@ -476,9 +475,9 @@ class resources_tags:
                     my_status.error()
         elif self.unit == 'volumes':
             try:
-                if chosen_resources:
+                if self.chosen_resources:
                     client = this_session.client(self.resource_type, region_name=self.region)
-                    for resource_id_name in chosen_resources:
+                    for resource_id_name in self.chosen_resources:
                         response = client.describe_tags(
                             Filters=[
                                 {
@@ -515,9 +514,9 @@ class resources_tags:
                     my_status.error()
         elif self.unit == 'buckets':
             try:
-                if chosen_resources:
+                if self.chosen_resources:
                     client = this_session.client(self.resource_type, region_name=self.region)
-                    for resource_id_name in chosen_resources:
+                    for resource_id_name in self.chosen_resources:
                         try:
                             response = client.get_bucket_tagging(
                                 Bucket=resource_id_name[0]
@@ -559,15 +558,15 @@ class resources_tags:
 
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            tagged_resource_inventory, returned_status = functions_inventory.get_lambda_resources_tags(chosen_resources, **self.session_credentials)
+            tagged_resource_inventory, returned_status = functions_inventory.get_lambda_resources_tags(self.chosen_resources, **self.session_credentials)
         
         elif self.unit == 'clusters':
             clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
-            tagged_resource_inventory, returned_status = clusters_inventory.get_eks_clusters_tags(chosen_resources, **self.session_credentials)
+            tagged_resource_inventory, returned_status = clusters_inventory.get_eks_clusters_tags(self.chosen_resources, **self.session_credentials)
 
         elif self.unit == 'rdsclusters':
             rds_clusters_inventory = rds_resources_tags(self.resource_type, self.region)
-            tagged_resource_inventory, returned_status = rds_clusters_inventory.get_rds_resources_tags(chosen_resources, **self.session_credentials)
+            tagged_resource_inventory, returned_status = rds_clusters_inventory.get_rds_resources_tags(self.chosen_resources, **self.session_credentials)
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
         download_file = _download_csv(sorted_tagged_resource_inventory, self.user_name)
@@ -577,8 +576,8 @@ class resources_tags:
         
         return sorted_tagged_resource_inventory, returned_status
 
-    # Getter method retrieves every tag:key for object's resource type
-    # No input arguments
+    # Purpose:  Getter method retrieves every tag:key for object's resource type
+    # Input arguments are Boto3 session credentials
     def get_tag_keys(self, **session_credentials):
         my_status = execution_status()
         sorted_tag_keys_inventory = list()
@@ -680,8 +679,8 @@ class resources_tags:
 
         return sorted_tag_keys_inventory, my_status.get_status()
 
-    # Getter method retrieves every tag:value for object's resource type
-    # No input arguments
+    # Purpose:  Getter method retrieves every tag:value for object's resource type
+    # Input arguments are Boto3 session credentials
     def get_tag_values(self, **session_credentials):
         my_status = execution_status()
         sorted_tag_values_inventory = list()
@@ -779,7 +778,8 @@ class resources_tags:
 
         return sorted_tag_values_inventory, my_status.get_status()
 
-    #Setter method to update tags on user-selected resources 
+    # Purpose:  Setter method to update tags on user-selected resources
+    # Input arguments are Boto3 session credentials, list of resource ID's to tag & list of tag dictionaries
     def set_resources_tags(self, resources_to_tag, chosen_tags, **session_credentials):
 
         resources_updated_tags = dict()
