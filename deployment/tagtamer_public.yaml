@@ -225,6 +225,8 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: tcp
           CidrIp: '0.0.0.0/0'
+          FromPort: 0
+          ToPort: 65535
       Tags:
       - Key: Name
         Value: Tagtamer-PublicLoadBalancerSecurityGroup
@@ -405,6 +407,8 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: tcp
           CidrIp: '0.0.0.0/0'
+          FromPort: 0
+          ToPort: 65535
     Metadata:
         cfn_nag:
           rules_to_suppress:
