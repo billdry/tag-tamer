@@ -61,8 +61,14 @@ Parameters:
     Default: tag_tamer_identity_pool
     Description: Name of Tag Tamer's Amazon Cognito Identity Pool
 
-Resources:
+Mappings:
+  SourceCode:
+    General:
+      S3Bucket: '%%BUCKET_NAME%%'
+      KeyPrefix: '%%SOLUTION_NAME%%/%%VERSION%%'
+      Version: '%%VERSION%%'
 
+Resources:
   TagTamerTagGroupsTable:
     Type: 'AWS::DynamoDB::Table'
     Properties:
@@ -164,10 +170,14 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: tcp
           CidrIp: '0.0.0.0/0'
+          FromPort: 0
+          ToPort: 65535
     Metadata:
         cfn_nag:
           rules_to_suppress:
           - id: W28
+            reason: "Works as designed"
+          - id: W29
             reason: "Works as designed"
           - id: W5
             reason: "Works as designed"
@@ -263,7 +273,7 @@ Resources:
         EmailSendingAccount: COGNITO_DEFAULT
       EmailVerificationMessage: 'Your Tag Tamer verification code is {####}. '
       EmailVerificationSubject: Your Tag Tamer verification code
-      MfaConfiguration: 'OPTIONAL'
+      MfaConfiguration: 'OFF'
       Policies:
         PasswordPolicy:
           MinimumLength: 8
