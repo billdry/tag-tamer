@@ -224,6 +224,7 @@ class service_catalog:
                         ResourceId=sc_product_template_id,
                         TagOptionId=to_id
                     )
+                    self.my_status.success()
                     current_status = self.my_status.get_status()
                     if current_status['alert_level'] == 'success':
                         self.my_status.success(message='New Tag Option associated with Service Catalog product!')
@@ -240,6 +241,7 @@ class service_catalog:
             product_template_details = self.service_catalog_client.describe_product_as_admin(
                 Id=sc_product_template_id
             )
+            self.my_status.success()
             current_status = self.my_status.get_status()
             if current_status['alert_level'] == 'success':
                 self.my_status.success(message='Service Catalog product template found!')
