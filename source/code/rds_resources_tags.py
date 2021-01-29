@@ -333,16 +333,20 @@ class rds_resources_tags:
             client = this_session.client(self.resource_type, region_name=self.region)
             # Interate all the resources in the region
             my_resources = client.describe_db_clusters()
-            for item in my_resources['DBClusters']:
-                if item.get('TagList'):
-                    # Add all tag keys to the list
-                    for tag in item['TagList']:       
-                            if not re.search("^aws:", tag['Key']):
-                                tag_keys_inventory.append(tag['Key'])
-                    my_status.success(message='Resources and tags found!')
-                else:
-                    tag_keys_inventory.append("No tag keys found")
-                    my_status.warning(message='No resource tags found.')
+            if len(my_resources['DBClusters']) == 0:
+                tag_keys_inventory.append("No tag keys found")
+                my_status.warning(message='No Amazon RDS clusters found!')
+            else:
+                for item in my_resources['DBClusters']:
+                    if item.get('TagList'):
+                        # Add all tag keys to the list
+                        for tag in item['TagList']:       
+                                if not re.search("^aws:", tag['Key']):
+                                    tag_keys_inventory.append(tag['Key'])
+                        my_status.success(message='Resources and tags found!')
+                    else:
+                        tag_keys_inventory.append("No tag keys found")
+                        my_status.warning(message='No resource tags found.')
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             tag_keys_inventory.append("No tag keys found")
@@ -378,16 +382,20 @@ class rds_resources_tags:
             client = this_session.client(self.resource_type, region_name=self.region)
             # Interate all the resources in the region
             my_resources = client.describe_db_clusters()
-            for item in my_resources['DBClusters']:
-                if item.get('TagList'):
-                    # Add all tag keys to the list
-                    for tag in item['TagList']:       
-                            if not re.search("^aws:", tag['Values']):
-                                tag_values_inventory.append(tag['Values'])
-                    my_status.success(message='Resources and tags found!')
-                else:
-                    tag_values_inventory.append("No tag values found")
-                    my_status.warning(message='No resource tags found.')		
+            if len(my_resources['DBClusters']) == 0:
+                tag_values_inventory.append("No tag values found")
+                my_status.warning(message='No Amazon RDS clusters found!')
+            else:
+                for item in my_resources['DBClusters']:
+                    if item.get('TagList'):
+                        # Add all tag keys to the list
+                        for tag in item['TagList']:       
+                                if not re.search("^aws:", tag['Values']):
+                                    tag_values_inventory.append(tag['Values'])
+                        my_status.success(message='Resources and tags found!')
+                    else:
+                        tag_values_inventory.append("No tag values found")
+                        my_status.warning(message='No resource tags found.')		
                 
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
