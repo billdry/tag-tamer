@@ -57,6 +57,10 @@ import sys
 #import epoch time method
 from time import time
 
+# Read in Tag Tamer version
+tag_tamer_version_file = open('tag_tamer_version.json', "rt")
+tag_tamer_version = json.load(tag_tamer_version_file)
+
 # Read in Tag Tamer solution parameters
 tag_tamer_parameters_file = open('tag_tamer_parameters.json', "rt")
 tag_tamer_parameters = json.load(tag_tamer_parameters_file)
@@ -188,7 +192,7 @@ def index():
     # Grant access if session time not expired & user assigned to Cognito user pool group
     if time() < claims.get('exp') and user_email and user_source and cognito_user_group_arn:
         log.info("Successful login.  User \"{}\" with email: \"{}\" signed in on {} from location: \"{}\"".format(claims.get('username'), user_email, date_time_now(), user_source))
-        return render_template('index.html', user_name=claims.get('username'))
+        return render_template('index.html', user_name=claims.get('username'), version=tag_tamer_version.get('tag_tamer_version_number'))
     else:
         log.info("Failed login attempt.  User \"{}\" with email: \"{}\" attempted to sign in on {} from location: \"{}\"".format(claims.get('username'), user_email, date_time_now(), user_source))
         return redirect('/sign-in')
