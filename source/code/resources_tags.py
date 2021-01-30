@@ -242,9 +242,9 @@ class resources_tags:
                                     for tag in resource['Tags']:
                                         if(tag['Key'].lower() == 'name'):
                                             named_resource_inventory[resource['InstanceId']] = tag['Value']
-
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error. function: {} - {}".format(sys._getframe().f_code.co_name, error))
+                    named_resource_inventory["No Resource Found"] = "No Resource Found"
             else:
                 try:
                     named_resources = _get_named_resources('describe_instances')
@@ -278,9 +278,9 @@ class resources_tags:
                                 for tag in item['Tags']:
                                     if(tag['Key'].lower() == 'name'):
                                         named_resource_inventory[item['VolumeId']] = tag['Value']
-
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error. function: {} - {}".format(sys._getframe().f_code.co_name, error))
+                    named_resource_inventory["No Resource Found"] = "No Resource Found"
             else:
                 try:
                     named_resources = _get_named_resources('describe_volumes')
@@ -375,6 +375,10 @@ class resources_tags:
             rds_clusters_inventory = rds_resources_tags(self.resource_type, self.region)
             named_resource_inventory, rds_clusters_status = rds_clusters_inventory.get_rds_names_ids(self.filter_tags, **self.session_credentials)
             return named_resource_inventory, rds_clusters_status
+
+        # Handle case where there are no untagged resources
+        if not named_resource_inventory:
+            named_resource_inventory["No Resource Found"] = "No Resource Found"
 
         # Sort the resources based on the resource's name
         ordered_inventory = OrderedDict()
