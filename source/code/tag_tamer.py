@@ -35,7 +35,7 @@ from ssm_parameter_store import ssm_parameter_store
 # Import AWS STS functions
 #from sts import get_session_credentials
 # Import Tag Tamer utility functions
-from utilities import get_resource_type_unit, verify_jwt
+from utilities import get_aws_regions, get_resource_type_unit, verify_jwt
 
 # Import flask framework module & classes to build API's
 import flask, flask_wtf
@@ -81,9 +81,19 @@ logging.getLogger('flask_wtf.csrf').setLevel('WARNING')
 logging.getLogger('werkzeug').setLevel('ERROR')
 
 # Get user-specified AWS regions
-selected_region = tag_tamer_parameters['parameters']['selected_region']
-region = selected_region
-log.debug('The selected AWS region is: \"%s\"', region)
+selected_regions = tag_tamer_parameters['parameters']['selected_regions']
+all_current_regions = get_aws_regions()
+validated_regions = list()
+if all_current_regions:
+    for region in selected_regions:
+        if region in all_current_regions:
+            validated_regions.append(region)
+    if tag_tamer_parameters['parameters']['default_region'] in all_current_regions:
+        region = tag_tamer_parameters['parameters']['default_region']
+if not validated_regions:
+    log.info("Terminating Tag Tamer application on {} because none of the provisioned AWS regions are available.  Please check the tag_tamer_parameters.json file.".format(date_time_now()))
+    sys.exit()
+log.debug('The validated AWS regions are: \"%s\"', validated_regions)
 
 # Get AWS Service parameters from AWS SSM Parameter Store
 ssm_ps = ssm_parameter_store(region)
@@ -91,22 +101,28 @@ ssm_ps = ssm_parameter_store(region)
 ssm_parameter_full_names = ssm_ps.form_parameter_hierarchies(tag_tamer_parameters['parameters']['ssm_parameter_path'], tag_tamer_parameters['parameters']['ssm_parameter_names']) 
 log.debug('The full names are: %s', ssm_parameter_full_names)
 # SSM Parameters names & values
-#ssm_parameters = ssm_ps.ssm_get_parameter_details(ssm_parameter_full_names)
 ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters['parameters']['ssm_parameter_path'])
+if not ssm_parameters:
+    log.info("Terminating Tag Tamer application on {} because no AWS SSM Parameters are available.  Please check the tag_tamer_parameters.json file & the AWS SSM Parameter Store.".format(date_time_now()))
+    sys.exit()
 
-# Instantiate flask API applications
+# Instantiate flask API application
 app = Flask(__name__)
 app.secret_key = os.urandom(16)
-app.config['AWS_DEFAULT_REGION'] = ssm_parameters['cognito-default-region-value']
-app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters['cognito-domain-value']
-app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters['cognito-user-pool-id-value']
-app.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = ssm_parameters['cognito-app-client-id']
-app.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = ssm_parameters['cognito-app-client-secret-value']
-app.config['AWS_COGNITO_REDIRECT_URL'] = ssm_parameters['cognito-redirect-url-value']
-app.config['JWT_TOKEN_LOCATION'] = ssm_parameters['jwt-token-location']
-app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['jwt-access-cookie-name']
-app.config['JWT_COOKIE_SECURE'] = ssm_parameters['jwt-cookie-secure']
-app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['jwt-cookie-csrf-protect']
+try:
+    app.config['AWS_DEFAULT_REGION'] = ssm_parameters['cognito-default-region-value']
+    app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters['cognito-domain-value']
+    app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters['cognito-user-pool-id-value']
+    app.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = ssm_parameters['cognito-app-client-id']
+    app.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = ssm_parameters['cognito-app-client-secret-value']
+    app.config['AWS_COGNITO_REDIRECT_URL'] = ssm_parameters['cognito-redirect-url-value']
+    app.config['JWT_TOKEN_LOCATION'] = ssm_parameters['jwt-token-location']
+    app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['jwt-access-cookie-name']
+    app.config['JWT_COOKIE_SECURE'] = ssm_parameters['jwt-cookie-secure']
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['jwt-cookie-csrf-protect']
+except:
+    log.info("Terminating Tag Tamer application on {} because some required AWS SSM Parameters are undefined.  Please check the tag_tamer_parameters.json file & the AWS SSM Parameter Store.".format(date_time_now()))
+    sys.exit()
 
 csrf = CSRFProtect(app)
 csrf.init_app(app)
