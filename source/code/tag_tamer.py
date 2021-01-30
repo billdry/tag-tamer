@@ -67,11 +67,11 @@ tag_tamer_parameters = json.load(tag_tamer_parameters_file)
 
 # logLevel options are DEBUG, INFO, WARNING, ERROR or CRITICAL
 # Set logLevel in tag_tamer_parameters.json parameters file
-if  re.search("DEBUG|INFO|WARNING|ERROR|CRITICAL", tag_tamer_parameters['parameters']['logging_level'].upper()):
-    logLevel = tag_tamer_parameters['parameters']['logging_level'].upper()
+if  re.search("DEBUG|INFO|WARNING|ERROR|CRITICAL", tag_tamer_parameters.get('logging_level').upper()):
+    logLevel = tag_tamer_parameters.get('logging_level').upper()
 else:
     logLevel = 'INFO'
-logging.basicConfig(filename=tag_tamer_parameters['parameters']['log_file_location'],format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',datefmt='%m/%d/%Y %I:%M:%S %p')
+logging.basicConfig(filename=tag_tamer_parameters.get('log_file_location'),format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',datefmt='%m/%d/%Y %I:%M:%S %p')
 # Set the base/root logging level for tag_tamer.py & all imported modules
 logging.getLogger().setLevel(logLevel)
 log = logging.getLogger('tag_tamer_main')
@@ -81,15 +81,18 @@ logging.getLogger('flask_wtf.csrf').setLevel('WARNING')
 logging.getLogger('werkzeug').setLevel('ERROR')
 
 # Get user-specified AWS regions
-selected_regions = tag_tamer_parameters['parameters']['selected_regions']
 all_current_regions = get_aws_regions()
+selected_regions = tag_tamer_parameters.get('selected_regions')
 validated_regions = list()
 if all_current_regions:
-    for region in selected_regions:
-        if region in all_current_regions:
-            validated_regions.append(region)
-    if tag_tamer_parameters['parameters']['default_region'] in all_current_regions:
-        region = tag_tamer_parameters['parameters']['default_region']
+    if selected_regions:
+        for region in selected_regions:
+            if region in all_current_regions:
+                validated_regions.append(region)
+    elif tag_tamer_parameters.get('default_region'):
+        if tag_tamer_parameters.get('default_region') in all_current_regions:
+            region = tag_tamer_parameters.get('default_region')
+            validated_regions.append(tag_tamer_parameters.get('default_region'))
 if not validated_regions:
     log.info("Terminating Tag Tamer application on {} because none of the provisioned AWS regions are available.  Please check the tag_tamer_parameters.json file.".format(date_time_now()))
     sys.exit()
@@ -98,10 +101,10 @@ log.debug('The validated AWS regions are: \"%s\"', validated_regions)
 # Get AWS Service parameters from AWS SSM Parameter Store
 ssm_ps = ssm_parameter_store(region)
 # Fully qualified list of SSM Parameter names
-ssm_parameter_full_names = ssm_ps.form_parameter_hierarchies(tag_tamer_parameters['parameters']['ssm_parameter_path'], tag_tamer_parameters['parameters']['ssm_parameter_names']) 
+ssm_parameter_full_names = ssm_ps.form_parameter_hierarchies(tag_tamer_parameters.get('ssm_parameter_path'), tag_tamer_parameters.get('ssm_parameter_names')) 
 log.debug('The full names are: %s', ssm_parameter_full_names)
 # SSM Parameters names & values
-ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters['parameters']['ssm_parameter_path'])
+ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters.get('ssm_parameter_path'))
 if not ssm_parameters:
     log.info("Terminating Tag Tamer application on {} because no AWS SSM Parameters are available.  Please check the tag_tamer_parameters.json file & the AWS SSM Parameter Store.".format(date_time_now()))
     sys.exit()
@@ -110,16 +113,16 @@ if not ssm_parameters:
 app = Flask(__name__)
 app.secret_key = os.urandom(16)
 try:
-    app.config['AWS_DEFAULT_REGION'] = ssm_parameters['cognito-default-region-value']
-    app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters['cognito-domain-value']
-    app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters['cognito-user-pool-id-value']
-    app.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = ssm_parameters['cognito-app-client-id']
-    app.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = ssm_parameters['cognito-app-client-secret-value']
-    app.config['AWS_COGNITO_REDIRECT_URL'] = ssm_parameters['cognito-redirect-url-value']
-    app.config['JWT_TOKEN_LOCATION'] = ssm_parameters['jwt-token-location']
-    app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters['jwt-access-cookie-name']
-    app.config['JWT_COOKIE_SECURE'] = ssm_parameters['jwt-cookie-secure']
-    app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters['jwt-cookie-csrf-protect']
+    app.config['AWS_DEFAULT_REGION'] = ssm_parameters.get('cognito-default-region-value')
+    app.config['AWS_COGNITO_DOMAIN'] = ssm_parameters.get('cognito-domain-value')
+    app.config['AWS_COGNITO_USER_POOL_ID'] = ssm_parameters.get('cognito-user-pool-id-value')
+    app.config['AWS_COGNITO_USER_POOL_CLIENT_ID'] = ssm_parameters.get('cognito-app-client-id')
+    app.config['AWS_COGNITO_USER_POOL_CLIENT_SECRET'] = ssm_parameters.get('cognito-app-client-secret-value')
+    app.config['AWS_COGNITO_REDIRECT_URL'] = ssm_parameters.get('cognito-redirect-url-value')
+    app.config['JWT_TOKEN_LOCATION'] = ssm_parameters.get('jwt-token-location')
+    app.config['JWT_ACCESS_COOKIE_NAME'] = ssm_parameters.get('jwt-access-cookie-name')
+    app.config['JWT_COOKIE_SECURE'] = ssm_parameters.get('jwt-cookie-secure')
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = ssm_parameters.get('jwt-cookie-csrf-protect')
 except:
     log.info("Terminating Tag Tamer application on {} because some required AWS SSM Parameters are undefined.  Please check the tag_tamer_parameters.json file & the AWS SSM Parameter Store.".format(date_time_now()))
     sys.exit()
@@ -128,15 +131,13 @@ csrf = CSRFProtect(app)
 csrf.init_app(app)
 
 aws_auth = AWSCognitoAuthentication(app)
-#jwt = JWTManager(app)
-
 
 # Get the user's session credentials based on username passed in JWT
 def get_user_session_credentials(cognito_id_token):
     user_session_credentials = get_user_credentials(cognito_id_token,
-        ssm_parameters['cognito-user-pool-id-value'],
-        ssm_parameters['cognito-identity-pool-id-value'],
-        ssm_parameters['cognito-default-region-value'])
+        ssm_parameters.get('cognito-user-pool-id-value'),
+        ssm_parameters.get('cognito-identity-pool-id-value'),
+        ssm_parameters.get('cognito-default-region-value'))
     return user_session_credentials
 
 # Verify user's email & source IP address
@@ -148,9 +149,9 @@ def get_user_email_ip(route):
     
     if access_token and id_token:
         id_token_claims = dict()
-        id_token_claims = verify_jwt(ssm_parameters['cognito-default-region-value'],
-            ssm_parameters['cognito-user-pool-id-value'],
-            ssm_parameters['cognito-app-client-id'],
+        id_token_claims = verify_jwt(ssm_parameters.get('cognito-default-region-value'),
+            ssm_parameters.get('cognito-user-pool-id-value'),
+            ssm_parameters.get('cognito-app-client-id'),
             'id_token', id_token)
         if id_token_claims.get('email'):
             user_email = id_token_claims.get('email')
@@ -167,7 +168,6 @@ def get_user_email_ip(route):
         source = False
     
     return user_email, source
-
 
 # Allow users to sign into Tag Tamer via an Amazon Cognito User Pool
 @app.route('/log-in')
@@ -203,8 +203,8 @@ def index():
     
     # Get the user's assigned Cognito user pool group
     cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
-        ssm_parameters['cognito-user-pool-id-value'],
-        ssm_parameters['cognito-default-region-value'])
+        ssm_parameters.get('cognito-user-pool-id-value'),
+        ssm_parameters.get('cognito-default-region-value'))
     # Grant access if session time not expired & user assigned to Cognito user pool group
     if time() < claims.get('exp') and user_email and user_source and cognito_user_group_arn:
         log.info("Successful login.  User \"{}\" with email: \"{}\" signed in on {} from location: \"{}\"".format(claims.get('username'), user_email, date_time_now(), user_source))
@@ -220,7 +220,6 @@ def actions():
     return render_template('actions.html')    
 
 # Get response delivers HTML UI to select AWS resource types that Tag Tamer will find
-# Post action initiates tag finding for user-selected AWS resource types
 @app.route('/find-tags', methods=['GET'])
 @aws_auth.authentication_required
 def find_tags():
@@ -233,6 +232,7 @@ def find_tags():
         flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
 
+# Post action initiates tag finding for user-selected AWS resource types
 # Pass Get response to found-tags HTML UI
 @app.route('/found-tags', methods=['POST'])
 @aws_auth.authentication_required
