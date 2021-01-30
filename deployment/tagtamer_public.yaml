@@ -472,10 +472,10 @@ Resources:
 #      InstanceId: !Ref EC2Instance
 #    DependsOn:
 #      - EC2Instance
-  TagTamerPolicy:
+  TagTamerWebAppEC2InstancePolicy:
     Type: 'AWS::IAM::Policy'
     Properties:
-      PolicyName: TagTamerPolicy
+      PolicyName: TagTamerWebAppEC2InstancePolicy
       PolicyDocument:
         Version: 2012-10-17
         Statement:
