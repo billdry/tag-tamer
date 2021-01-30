@@ -215,10 +215,10 @@ Resources:
           Value: Tag Tamer Web App
         - Key: Usage
           Value: Tag Tamer Solution UI
-  TagTamerPolicy:
+  TagTamerWebAppEC2InstancePolicy:
     Type: 'AWS::IAM::Policy'
     Properties:
-      PolicyName: TagTamerPolicy
+      PolicyName: TagTamerWebAppEC2InstancePolicy
       PolicyDocument:
         Version: 2012-10-17
         Statement:
