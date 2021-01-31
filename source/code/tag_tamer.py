@@ -66,7 +66,7 @@ tag_tamer_parameters_file = open('tag_tamer_parameters.json', "rt")
 tag_tamer_parameters = json.load(tag_tamer_parameters_file)
 
 # logLevel options are DEBUG, INFO, WARNING, ERROR or CRITICAL
-# Set logLevel in tag_tamer_parameters.json parameters file
+# Set logLevel specified in tag_tamer_parameters.json parameters file
 if  re.search("DEBUG|INFO|WARNING|ERROR|CRITICAL", tag_tamer_parameters.get('logging_level').upper()):
     logLevel = tag_tamer_parameters.get('logging_level').upper()
 else:
@@ -82,17 +82,17 @@ logging.getLogger('werkzeug').setLevel('ERROR')
 
 # Get user-specified AWS regions
 all_current_regions = get_aws_regions()
-selected_regions = tag_tamer_parameters.get('selected_regions')
+additional_regions = tag_tamer_parameters.get('additional_regions')
 validated_regions = list()
 if all_current_regions:
-    if selected_regions:
-        for region in selected_regions:
-            if region in all_current_regions:
+    if tag_tamer_parameters.get('base_region'):
+        if tag_tamer_parameters.get('base_region') in all_current_regions:
+            region = tag_tamer_parameters.get('base_region')
+            validated_regions.append(tag_tamer_parameters.get('base_region'))
+    if additional_regions:
+        for reg in additional_regions:
+            if reg in all_current_regions:
                 validated_regions.append(region)
-    elif tag_tamer_parameters.get('default_region'):
-        if tag_tamer_parameters.get('default_region') in all_current_regions:
-            region = tag_tamer_parameters.get('default_region')
-            validated_regions.append(tag_tamer_parameters.get('default_region'))
 if not validated_regions:
     log.info("Terminating Tag Tamer application on {} because none of the provisioned AWS regions are available.  Please check the tag_tamer_parameters.json file.".format(date_time_now()))
     sys.exit()
@@ -104,7 +104,8 @@ ssm_ps = ssm_parameter_store(region)
 ssm_parameter_full_names = ssm_ps.form_parameter_hierarchies(tag_tamer_parameters.get('ssm_parameter_path'), tag_tamer_parameters.get('ssm_parameter_names')) 
 log.debug('The full names are: %s', ssm_parameter_full_names)
 # SSM Parameters names & values
-ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters.get('ssm_parameter_path'))
+#ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters.get('ssm_parameter_path'))
+ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters['ssm_parameter_path'])
 if not ssm_parameters:
     log.info("Terminating Tag Tamer application on {} because no AWS SSM Parameters are available.  Please check the tag_tamer_parameters.json file & the AWS SSM Parameter Store.".format(date_time_now()))
     sys.exit()
@@ -219,6 +220,7 @@ def index():
 def actions():
     return render_template('actions.html')    
 
+"""
 # Get response delivers HTML UI to select AWS resource types that Tag Tamer will find
 @app.route('/find-tags', methods=['GET'])
 @aws_auth.authentication_required
@@ -231,6 +233,7 @@ def find_tags():
         log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
         flash('You are not authorized to view these resources', 'danger')
         return render_template('blank.html')
+"""
 
 # Post action initiates tag finding for user-selected AWS resource types
 # Pass Get response to found-tags HTML UI
