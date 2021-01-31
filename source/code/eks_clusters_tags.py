@@ -406,42 +406,57 @@ class eks_clusters_tags:
             # Get all the EKS clusters in the region
             my_clusters = client.list_clusters()
             if len(my_clusters['clusters']) == 0:
-                tag_values_inventory.append("No tag values found")
+                #tag_values_inventory.append("No tag values found")
                 my_status.warning(message='No Amazon EKS clusters found!')
             else:
                 for item in my_clusters['clusters']:
-                    cluster_arn = client.describe_cluster(
-                        name=item
-                    )['cluster']['arn']
                     try:
-                        # Get all the tags for a given EKS Cluster
-                        response = client.list_tags_for_resource(
-                            resourceArn=cluster_arn
-                        )
+                        cluster_arn = client.describe_cluster(
+                            name=item
+                        )['cluster']['arn']
+                        print("The EKS cluster are is: ", cluster_arn)
                         try:
-                            # Add all tag keys to the list
-                            for tag_key, tag_value in response['Tags'].items():       
-                                # Exclude any AWS-applied tags which begin with "aws:"
-                                if not re.search("^aws:", tag_key):
-                                    tag_values_inventory.append(tag_value)
-                                    my_status.success(message='Resources and tags found!')            
-                        except:
-                            tag_values_inventory.append("")
-                            my_status.warning(message='No tags found for this resource.')
+                            # Get all the tags for a given EKS Cluster
+                            response = client.list_tags_for_resource(
+                                resourceArn=cluster_arn
+                            )
+                            if len(response.get('Tags')):
+                                # Add all tag keys to the list
+                                for tag_key, tag_value in response['Tags'].items():       
+                                    # Exclude any AWS-applied tags which begin with "aws:"
+                                    if not re.search("^aws:", tag_key):
+                                        tag_values_inventory.append(tag_value)
+                                        
+                        except botocore.exceptions.ClientError as error:
+                            log.error("Boto3 API returned error: {}".format(error))
+                            #tag_values_inventory.append("")
+                            if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
+                                my_status.error(message='You are not authorized to view these resources')
+                            else:
+                                my_status.error()
+                            return tag_values_inventory, my_status.get_status()
                     except botocore.exceptions.ClientError as error:
-                        log.error("Boto3 API returned error: {}".format(error))
-                        tag_values_inventory.append("")
-                        if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
-                            my_status.error(message='You are not authorized to view these resources')
-                        else:
-                            my_status.error()
+                            log.error("Boto3 API returned error: {}".format(error))
+                            if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
+                                my_status.error(message='You are not authorized to view these resources')
+                            else:
+                                my_status.error()
+                            return tag_values_inventory, my_status.get_status()
+                    
+            # Set success if tag values found else set warning
+            if len(tag_values_inventory):
+                my_status.success(message='Tag values found!')
+            else:
+                my_status.warning(message='No tag values found for this resource type.')	
+
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
-            tag_values_inventory.append("")
+            #tag_values_inventory.append("")
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                    
                 my_status.error(message='You are not authorized to view these resources')
             else:
                 my_status.error()
+            return tag_values_inventory, my_status.get_status()
 
         #Remove duplicate tags & sort
         tag_values_inventory = list(set(tag_values_inventory))

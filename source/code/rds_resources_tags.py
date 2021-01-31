@@ -383,19 +383,24 @@ class rds_resources_tags:
             # Interate all the resources in the region
             my_resources = client.describe_db_clusters()
             if len(my_resources['DBClusters']) == 0:
-                tag_values_inventory.append("No tag values found")
+                #tag_values_inventory.append("No tag values found")
                 my_status.warning(message='No Amazon RDS clusters found!')
             else:
                 for item in my_resources['DBClusters']:
-                    if item.get('TagList'):
+                    if len(item.get('TagList')):
                         # Add all tag keys to the list
                         for tag in item['TagList']:       
                                 if not re.search("^aws:", tag['Values']):
                                     tag_values_inventory.append(tag['Values'])
-                        my_status.success(message='Resources and tags found!')
-                    else:
-                        tag_values_inventory.append("No tag values found")
-                        my_status.warning(message='No resource tags found.')		
+                    #    my_status.success(message='Tag values found!')
+                    #else:
+                    #    tag_values_inventory.append("No tag values found")
+                    #    my_status.warning(message='No resource tags found.')
+            # Set success if tag values found else set warning
+            if len(tag_values_inventory):
+                my_status.success(message='Tag values found!')
+            else:
+                my_status.warning(message='No tag values found for this resource type.')		
                 
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
@@ -405,6 +410,7 @@ class rds_resources_tags:
                 my_status.error(message='You are not authorized to view these resources')
             else:
                 my_status.error()
+            return tag_values_inventory, my_status.get_status()
         
         #Remove duplicate tags & sort
         tag_values_inventory = list(set(tag_values_inventory))

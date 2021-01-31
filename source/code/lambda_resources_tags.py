@@ -396,35 +396,33 @@ class lambda_resources_tags:
                     response = client.list_tags(
                         Resource=function_arn
                     )
-                    try:
-                        # Add all tag keys to the list
+                    if len(response.get('Tags')):
+                        # Add all tag values to the list
                         for tag_key, tag_value in response['Tags'].items():       
                             # Exclude any AWS-applied tags which begin with "aws:"
                             if not re.search("^aws:", tag_key) and tag_value:
                                 tag_values_inventory.append(tag_value)
-                    except:
-                        #tag_values_inventory.append("No tag values found")
-                        tag_values_inventory.append("")
-                        my_status.warning(message='No tags found for this resource.')
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
-                    #tag_values_inventory.append("No tag values found")
-                    tag_values_inventory.append("")
                     if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
                         my_status.error(message='You are not authorized to view these resources')
                     else:
                         my_status.error()
-            
-            my_status.success(message='Resources and tags found!')
+                    return tag_values_inventory, my_status.get_status()
                 
+            # Set success if tag values found else set warning
+            if len(tag_values_inventory):
+                my_status.success(message='Tag values found!')
+            else:
+                my_status.warning(message='No tag values found for this resource type.')
+
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
-            #tag_values_inventory.append("No tag values found")
-            tag_values_inventory.append("")
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                    
                 my_status.error(message='You are not authorized to view these resources')
             else:
                 my_status.error()
+            return tag_values_inventory, my_status.get_status()
         
         #Remove duplicate tags & sort
         tag_values_inventory = list(set(tag_values_inventory))

@@ -85,16 +85,19 @@ all_current_regions = get_aws_regions()
 additional_regions = tag_tamer_parameters.get('additional_regions')
 validated_regions = list()
 if all_current_regions:
-    if tag_tamer_parameters.get('base_region'):
-        if tag_tamer_parameters.get('base_region') in all_current_regions:
-            #region = tag_tamer_parameters.get('base_region')
-            validated_regions.append(tag_tamer_parameters.get('base_region'))
+    #if tag_tamer_parameters.get('base_region'):
+    if tag_tamer_parameters.get('base_region') in all_current_regions:
+        #region = tag_tamer_parameters.get('base_region')
+        validated_regions.append(tag_tamer_parameters.get('base_region'))
+    else:
+        log.info("Terminating Tag Tamer application on {} because the base AWS region is not available.  Please check the tag_tamer_parameters.json file.".format(date_time_now()))
+        sys.exit()
     if additional_regions:
         for reg in additional_regions:
             if reg in all_current_regions:
                 validated_regions.append(reg)
-if not validated_regions:
-    log.info("Terminating Tag Tamer application on {} because none of the provisioned AWS regions are available.  Please check the tag_tamer_parameters.json file.".format(date_time_now()))
+else:
+    log.info("Terminating Tag Tamer application on {} because no AWS regions are available.  Please check the tag_tamer_parameters.json file.".format(date_time_now()))
     sys.exit()
 log.debug('The validated AWS regions are: \"%s\"', validated_regions)
 
@@ -261,7 +264,6 @@ def found_tags():
             # Multi-region look-up
             all_execution_status_alert_levels = list()
             all_sorted_tagged_inventory = dict()
-            # all_execution_status = dict()
             file_use_method = "w"
             for region in validated_regions:
                 inventory = resources_tags(resource_type, unit, region)
@@ -272,7 +274,7 @@ def found_tags():
                 session_credentials["chosen_resources"] = chosen_resources
                 sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
                 inventory.download_csv(file_use_method, region, sorted_tagged_inventory, claims.get('username'))
-                # Set file_use_method to append "a" for rest of validated regions
+                # Set file_use_method to append "a" for remaining validated regions
                 file_use_method = "a"
                 all_sorted_tagged_inventory[region] = sorted_tagged_inventory
                 all_execution_status_alert_levels.append(execution_status.get('alert_level'))
@@ -335,7 +337,7 @@ def get_tag_group_names():
     user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     if user_email and session_credentials.get('AccessKeyId'):
-        all_tag_groups = get_tag_groups(region, **session_credentials)
+        all_tag_groups = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
         tag_group_names, execution_status = all_tag_groups.get_tag_group_names()
         flash(execution_status['status_message'], execution_status['alert_level'])
         if execution_status.get('alert_level') == 'success':
@@ -360,25 +362,41 @@ def edit_tag_group():
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     if user_email and session_credentials.get('AccessKeyId'):
         resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-        inventory = resources_tags(resource_type, unit, region)
-        sorted_tag_values_inventory, execution_status = inventory.get_tag_values(**session_credentials) 
-        if execution_status.get('alert_level') == 'success':
+        all_execution_status_alert_levels = list()
+        all_sorted_tag_values_inventory = list()
+        for region in validated_regions:
+            inventory = resources_tags(resource_type, unit, region)
+            sorted_tag_values_inventory, execution_status = inventory.get_tag_values(**session_credentials) 
+            all_sorted_tag_values_inventory = all_sorted_tag_values_inventory + sorted_tag_values_inventory
+            all_execution_status_alert_levels.append(execution_status.get('alert_level'))
+            region_execution_status_message = str(region) + " - " + str(execution_status.get('status_message'))
+            flash(region_execution_status_message, execution_status.get('alert_level'))
+        
+        #Remove duplicate tag values & sort
+        all_sorted_tag_values_inventory = list(set(all_sorted_tag_values_inventory))
+        all_sorted_tag_values_inventory.sort(key=str.lower)
+
+        # Execution status will be "success" if at least one AWS region contains the tag-filtered resources
+        if 'success' in all_execution_status_alert_levels or 'warning' in all_execution_status_alert_levels:
+        # if execution_status.get('alert_level') == 'success':
             log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-            # If user does not select an existing Tag Group or enter 
-            # a new Tag Group name reload this route until valid user input given
+            # First conditional checks if the user wants to edit an existing Tag Group
             if request.form.get('tag_group_name'):    
                 selected_tag_group_name = request.form.get('tag_group_name')
-                tag_group = get_tag_groups(region, **session_credentials)
+                tag_group = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
                 tag_group_key_values, execution_status = tag_group.get_tag_group_key_values(selected_tag_group_name)
                 if execution_status.get('alert_level') == 'success':
-                    return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+                    return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=all_sorted_tag_values_inventory)
                 else:
                     flash(execution_status['status_message'], execution_status['alert_level'])
                     return render_template('blank.html')
+            # Second conditional checks if the user creates a brand new Tag Group
             elif request.form.get('new_tag_group_name') and re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')):
                 selected_tag_group_name = request.form.get('new_tag_group_name')
                 tag_group_key_values = {}
-                return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+                return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=all_sorted_tag_values_inventory)
+            # If user does not select an existing Tag Group or enter 
+            # a new Tag Group name reload this route until valid user input given
             else:
                 return render_template('type-to-tag-group.html')
         else:
@@ -428,20 +446,35 @@ def add_update_tag_group():
                     approved_new_tag_group_values.append(core_value)
             tag_group_value_options.extend(approved_new_tag_group_values)
 
-        tag_group = set_tag_group(region, **session_credentials)
+        tag_group = set_tag_group(tag_tamer_parameters.get('base_region'), **session_credentials)
         if tag_group_action == "create":
             execution_status = tag_group.create_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
         else:
             execution_status = tag_group.update_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
         if execution_status.get('alert_level') == 'success':
-            tag_groups = get_tag_groups(region, **session_credentials)
+            tag_groups = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
             tag_group_key_values, execution_status = tag_groups.get_tag_group_key_values(tag_group_name)
             if execution_status.get('alert_level') == 'success':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-                inventory = resources_tags(resource_type, unit, region)
-                sorted_tag_values_inventory, sorted_tag_values_execution_status = inventory.get_tag_values(**session_credentials)
-                return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=sorted_tag_values_inventory)
+                
+                all_execution_status_alert_levels = list()
+                all_sorted_tag_values_inventory = list()
+                for region in validated_regions:
+                    inventory = resources_tags(resource_type, unit, region)
+                    sorted_tag_values_inventory, execution_status = inventory.get_tag_values(**session_credentials) 
+                    all_sorted_tag_values_inventory = all_sorted_tag_values_inventory + sorted_tag_values_inventory
+                    all_execution_status_alert_levels.append(execution_status.get('alert_level'))
+                    region_execution_status_message = str(region) + " - " + str(execution_status.get('status_message'))
+                    flash(region_execution_status_message, execution_status.get('alert_level'))
+                
+                #Remove duplicate tag values & sort
+                all_sorted_tag_values_inventory = list(set(all_sorted_tag_values_inventory))
+                all_sorted_tag_values_inventory.sort(key=str.lower)
+                
+                #inventory = resources_tags(resource_type, unit, region)
+                #sorted_tag_values_inventory, sorted_tag_values_execution_status = inventory.get_tag_values(**session_credentials)
+                return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=all_sorted_tag_values_inventory)
             else:
                 log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 flash(execution_status['status_message'], execution_status['alert_level'])
@@ -543,7 +576,7 @@ def tag_resources():
             chosen_resources = OrderedDict()
             chosen_resources, resources_execution_status = chosen_resource_inventory.get_resources(filter_elements, **session_credentials)
             
-            tag_group_inventory = get_tag_groups(region, **session_credentials)
+            tag_group_inventory = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
             tag_groups_all_info, tag_groups_execution_status = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
             if resources_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
@@ -626,12 +659,12 @@ def get_service_catalog():
     if user_email and session_credentials.get('AccessKeyId'):
         #Get the Tag Group names & associated tag keys
         tag_group_inventory = dict()
-        tag_groups = get_tag_groups(region, **session_credentials)
+        tag_groups = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
         tag_group_inventory, tag_groups_execution_status = tag_groups.get_tag_group_names()
 
         #Get the Service Catalog product templates
         sc_product_ids_names = dict()
-        sc_products = service_catalog(region, **session_credentials)
+        sc_products = service_catalog(tag_tamer_parameters.get('base_region'), **session_credentials)
         sc_product_ids_names, sc_product_ids_names_execution_status = sc_products.get_sc_product_templates()
         
         if sc_product_ids_names_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
@@ -661,7 +694,7 @@ def set_service_catalog():
 
             #Get the Service Catalog product templates
             sc_product_ids_names = dict()
-            sc_products = service_catalog(region, **session_credentials)
+            sc_products = service_catalog(tag_tamer_parameters.get('base_region'), **session_credentials)
             sc_product_ids_names, sc_product_ids_names_execution_status = sc_products.get_sc_product_templates()
 
             #Assign every tag in selected Tag Groups to selected SC product templates
@@ -704,7 +737,7 @@ def find_config_rules():
     if user_email and session_credentials.get('AccessKeyId'):
         #Get the Tag Group names & associated tag keys
         tag_group_inventory = dict()
-        tag_groups = get_tag_groups(region, **session_credentials)
+        tag_groups = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
         tag_group_inventory, tag_groups_execution_status = tag_groups.get_tag_group_names()
 
         #Get the AWS Config Rules
@@ -742,7 +775,7 @@ def set_config_rules():
             selected_config_rules = request.form.getlist('chosen_config_rule_ids')
             config_rule_id = selected_config_rules[0]
 
-            tag_groups = get_tag_groups(region, **session_credentials)
+            tag_groups = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
             tag_group_key_values = dict()
             tag_groups_keys_values = dict()
             tag_count=1
@@ -788,10 +821,10 @@ def select_roles_tags():
     user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     if user_email and session_credentials.get('AccessKeyId'):
-        tag_group_inventory = get_tag_groups(region, **session_credentials)
-        tag_groups_all_info, tag_groups_all_execution_status = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
+        tag_group_inventory = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
+        tag_groups_all_info, tag_groups_all_execution_status = tag_group_inventory.get_all_tag_groups_key_values(tag_tamer_parameters.get('base_region'), **session_credentials)
 
-        iam_roles = roles(region, **session_credentials)
+        iam_roles = roles(tag_tamer_parameters.get('base_region'), **session_credentials)
         # In initial Tag Tamer release get AWS SSO Roles
         path_prefix = "/aws-reserved/sso.amazonaws.com/"
         roles_inventory, roles_execution_status = iam_roles.get_roles(path_prefix)
@@ -832,7 +865,7 @@ def set_roles_tags():
                     tag_kv["Value"] = value
                     chosen_tags.append(tag_kv)
 
-            role_to_tag = roles(region, **session_credentials)
+            role_to_tag = roles(tag_tamer_parameters.get('base_region'), **session_credentials)
             execution_status = role_to_tag.set_role_tags(role_name, chosen_tags)
             flash(execution_status['status_message'], execution_status['alert_level'])
             if execution_status.get('alert_level') == 'success':

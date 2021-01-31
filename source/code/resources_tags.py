@@ -746,7 +746,7 @@ class resources_tags:
                                 sorted_tag_values_inventory.append(tag["Value"])
                     except:
                         sorted_tag_values_inventory.append("No Tags Found")
-                my_status.success(message='Resources and tags found!')
+                my_status.success(message='Tag values found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
@@ -767,7 +767,7 @@ class resources_tags:
                                 sorted_tag_values_inventory.append(tag["Value"])
                     except:
                         sorted_tag_values_inventory.append("No Tags Found")
-                my_status.success(message='Resources and tags found!')
+                my_status.success(message='Tag values found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
@@ -788,7 +788,7 @@ class resources_tags:
                                 sorted_tag_values_inventory.append(tag["Value"])
                     except:
                         sorted_tag_values_inventory.append("No Tags Found")
-                my_status.success(message='Resources and tags found!')
+                my_status.success(message='Tag values found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
