@@ -384,7 +384,41 @@ class resources_tags:
         ordered_inventory = OrderedDict()
         ordered_inventory = sorted(named_resource_inventory.items(), key=lambda item: item[1])
         return ordered_inventory, my_status.get_status()
-            
+
+    # Create a csv file of returned results for downloading
+    def download_csv(self, file_use_method, region, inventory, user_name):
+        download_file = "./downloads/" + user_name + "-download.csv"
+        file_contents = list()
+        max_tags = 0
+        for resource_id, tags in inventory.items():
+            row = list()
+            if len(tags) > max_tags:
+                max_tags = len(tags)
+            row.append(region)
+            row.append(resource_id)
+            for key, value in tags.items():
+                row.append(key)
+                row.append(value)
+            file_contents.append(row)
+        if file_use_method == "w":
+            header_row = list()
+            header_row.append("AWS Region")
+            header_row.append("Resource ID")
+            iterator = 1
+            while iterator <= max_tags:
+                tag_key_header = "Tag Key" + str(iterator)
+                header_row.append(tag_key_header)
+                tag_value_header = "Tag Value" + str(iterator)
+                header_row.append(tag_value_header)
+                iterator += 1
+        with open(download_file, file_use_method, newline="") as file:
+            writer = csv.writer(file)
+            if file_use_method == "w":
+                writer.writerow(header_row)
+            writer.writerows(file_contents)
+        file.close()
+        #return download_file
+
     # Purpose:  Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
     # Input arguments are Boto3 session credentials, list of chosen resource tuples & user name making request
     def get_resources_tags(self, **session_credentials):
@@ -408,6 +442,7 @@ class resources_tags:
             aws_secret_access_key=self.session_credentials['SecretKey'],
             aws_session_token=self.session_credentials['SessionToken'])
 
+        """
         # Create a csv file of returned results for downloading
         def _download_csv(region, inventory, user_name):
             download_file = "./downloads/" + self.user_name + "-download.csv"
@@ -439,7 +474,8 @@ class resources_tags:
                 writer.writerows(file_contents)
             file.close()
             return download_file
-        
+        """
+
         # Interate through resources & inject resource ID's with user-defined tag key:value pairs per resource into a nested dictionary
         # indexed by resource ID
         if self.unit == 'instances':
@@ -576,7 +612,6 @@ class resources_tags:
             tagged_resource_inventory, returned_status = rds_clusters_inventory.get_rds_resources_tags(self.chosen_resources, **self.session_credentials)
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
-        download_file = _download_csv(self.region, sorted_tagged_resource_inventory, self.user_name)
         
         if not returned_status:
             returned_status = my_status.get_status()

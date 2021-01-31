@@ -259,8 +259,10 @@ def found_tags():
             log.debug('function: {} - Received the request arguments'.format(sys._getframe().f_code.co_name))
             
             # Multi-region look-up
+            all_execution_status_alert_levels = list()
             all_sorted_tagged_inventory = dict()
             # all_execution_status = dict()
+            file_use_method = "w"
             for region in validated_regions:
                 inventory = resources_tags(resource_type, unit, region)
                 chosen_resources = OrderedDict()
@@ -268,16 +270,19 @@ def found_tags():
                 claims = aws_auth.claims
                 session_credentials["region"] = region
                 session_credentials["chosen_resources"] = chosen_resources
-                session_credentials["user_name"] = claims.get('username')
                 sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
+                inventory.download_csv(file_use_method, region, sorted_tagged_inventory, claims.get('username'))
+                # Set file_use_method to append "a" for rest of validated regions
+                file_use_method = "a"
                 all_sorted_tagged_inventory[region] = sorted_tagged_inventory
-                #all_execution_status[region] = execution_status
-                region_execution_status = str(region) + " - " + str(execution_status['status_message'])
-                flash(region_execution_status, execution_status['alert_level'])
-            if execution_status.get('alert_level') == 'success':
+                all_execution_status_alert_levels.append(execution_status.get('alert_level'))
+                region_execution_status_message = str(region) + " - " + str(execution_status.get('status_message'))
+                flash(region_execution_status_message, execution_status.get('alert_level'))
+            # Execution status will be "success" if at least one AWS region contained the tag-filtered resources
+            if 'success' in all_execution_status_alert_levels:
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 return render_template('found-tags.html', all_inventory=all_sorted_tagged_inventory)
-            elif execution_status.get('alert_level') == 'warning':
+            elif 'warning' in all_execution_status_alert_levels:
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 return render_template('blank.html')
             else:
