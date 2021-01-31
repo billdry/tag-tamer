@@ -87,25 +87,24 @@ validated_regions = list()
 if all_current_regions:
     if tag_tamer_parameters.get('base_region'):
         if tag_tamer_parameters.get('base_region') in all_current_regions:
-            region = tag_tamer_parameters.get('base_region')
+            #region = tag_tamer_parameters.get('base_region')
             validated_regions.append(tag_tamer_parameters.get('base_region'))
     if additional_regions:
         for reg in additional_regions:
             if reg in all_current_regions:
-                validated_regions.append(region)
+                validated_regions.append(reg)
 if not validated_regions:
     log.info("Terminating Tag Tamer application on {} because none of the provisioned AWS regions are available.  Please check the tag_tamer_parameters.json file.".format(date_time_now()))
     sys.exit()
 log.debug('The validated AWS regions are: \"%s\"', validated_regions)
 
 # Get AWS Service parameters from AWS SSM Parameter Store
-ssm_ps = ssm_parameter_store(region)
+ssm_ps = ssm_parameter_store(tag_tamer_parameters.get('base_region'))
 # Fully qualified list of SSM Parameter names
 ssm_parameter_full_names = ssm_ps.form_parameter_hierarchies(tag_tamer_parameters.get('ssm_parameter_path'), tag_tamer_parameters.get('ssm_parameter_names')) 
 log.debug('The full names are: %s', ssm_parameter_full_names)
-# SSM Parameters names & values
-#ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters.get('ssm_parameter_path'))
-ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters['ssm_parameter_path'])
+# Get SSM Parameters names & values
+ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters.get('ssm_parameter_path'))
 if not ssm_parameters:
     log.info("Terminating Tag Tamer application on {} because no AWS SSM Parameters are available.  Please check the tag_tamer_parameters.json file & the AWS SSM Parameter Store.".format(date_time_now()))
     sys.exit()
@@ -221,6 +220,7 @@ def actions():
     return render_template('actions.html')    
 
 """
+# NO LONGER USED - select_resource_type() function/route used instead
 # Get response delivers HTML UI to select AWS resource types that Tag Tamer will find
 @app.route('/find-tags', methods=['GET'])
 @aws_auth.authentication_required
@@ -257,17 +257,26 @@ def found_tags():
                 filter_elements['conjunction'] = request.form.get('conjunction')
             resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
             log.debug('function: {} - Received the request arguments'.format(sys._getframe().f_code.co_name))
-            inventory = resources_tags(resource_type, unit, region)
-            chosen_resources = OrderedDict()
-            chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
-            claims = aws_auth.claims
-            session_credentials["chosen_resources"] = chosen_resources
-            session_credentials["user_name"] = claims.get('username')
-            sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
-            flash(execution_status['status_message'], execution_status['alert_level'])
+            
+            # Multi-region look-up
+            all_sorted_tagged_inventory = dict()
+            # all_execution_status = dict()
+            for region in validated_regions:
+                inventory = resources_tags(resource_type, unit, region)
+                chosen_resources = OrderedDict()
+                chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
+                claims = aws_auth.claims
+                session_credentials["region"] = region
+                session_credentials["chosen_resources"] = chosen_resources
+                session_credentials["user_name"] = claims.get('username')
+                sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
+                all_sorted_tagged_inventory[region] = sorted_tagged_inventory
+                #all_execution_status[region] = execution_status
+                region_execution_status = str(region) + " - " + str(execution_status['status_message'])
+                flash(region_execution_status, execution_status['alert_level'])
             if execution_status.get('alert_level') == 'success':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-                return render_template('found-tags.html', inventory=sorted_tagged_inventory)
+                return render_template('found-tags.html', all_inventory=all_sorted_tagged_inventory)
             elif execution_status.get('alert_level') == 'warning':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 return render_template('blank.html')
@@ -478,7 +487,7 @@ def tag_based_search():
     if user_email and session_credentials.get('AccessKeyId'):
         if request.args.get('resource_type'):
             resource_type, unit = get_resource_type_unit(request.args.get('resource_type'))
-            inventory = resources_tags(resource_type, unit, region)
+            inventory = resources_tags(resource_type, unit, tag_tamer_parameters.get('base_region'))
             selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**session_credentials)
             selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**session_credentials)
             if execution_status_tag_keys.get('alert_level') == 'success' and execution_status_tag_values.get('alert_level') == 'success':

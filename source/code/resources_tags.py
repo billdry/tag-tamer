@@ -395,29 +395,32 @@ class resources_tags:
         tagged_resource_inventory = {}
         sorted_tagged_resource_inventory = {}
 
-        self.chosen_resources = session_credentials['chosen_resources']
-        self.user_name = session_credentials['user_name']
+        self.chosen_resources = session_credentials.get('chosen_resources')
+        self.user_name = session_credentials.get('user_name')
+        self.region = session_credentials.get('region')
 
         self.session_credentials = {}
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials['AccessKeyId'] = session_credentials.get('AccessKeyId')
+        self.session_credentials['SecretKey'] = session_credentials.get('SecretKey')
+        self.session_credentials['SessionToken'] = session_credentials.get('SessionToken')
         this_session = boto3.session.Session(
             aws_access_key_id=self.session_credentials['AccessKeyId'],
             aws_secret_access_key=self.session_credentials['SecretKey'],
             aws_session_token=self.session_credentials['SessionToken'])
 
         # Create a csv file of returned results for downloading
-        def _download_csv(inventory, user_name):
+        def _download_csv(region, inventory, user_name):
             download_file = "./downloads/" + self.user_name + "-download.csv"
             file_contents = list()
             header_row = list()
+            header_row.append("AWS Region")
             header_row.append("Resource ID")
             max_tags = 0
             for resource_id, tags in inventory.items():
                 row = list()
                 if len(tags) > max_tags:
                     max_tags = len(tags)
+                row.append(region)
                 row.append(resource_id)
                 for key, value in tags.items():
                     row.append(key)
@@ -430,7 +433,7 @@ class resources_tags:
                 tag_value_header = "Tag Value" + str(iterator)
                 header_row.append(tag_value_header)
                 iterator += 1
-            with open(download_file, "w", newline="") as file:
+            with open(download_file, "a", newline="") as file:
                 writer = csv.writer(file)
                 writer.writerow(header_row)
                 writer.writerows(file_contents)
@@ -573,7 +576,7 @@ class resources_tags:
             tagged_resource_inventory, returned_status = rds_clusters_inventory.get_rds_resources_tags(self.chosen_resources, **self.session_credentials)
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
-        download_file = _download_csv(sorted_tagged_resource_inventory, self.user_name)
+        download_file = _download_csv(self.region, sorted_tagged_resource_inventory, self.user_name)
         
         if not returned_status:
             returned_status = my_status.get_status()
