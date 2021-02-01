@@ -472,8 +472,6 @@ def add_update_tag_group():
                 all_sorted_tag_values_inventory = list(set(all_sorted_tag_values_inventory))
                 all_sorted_tag_values_inventory.sort(key=str.lower)
                 
-                #inventory = resources_tags(resource_type, unit, region)
-                #sorted_tag_values_inventory, sorted_tag_values_execution_status = inventory.get_tag_values(**session_credentials)
                 return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=all_sorted_tag_values_inventory)
             else:
                 log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
@@ -597,8 +595,6 @@ def tag_resources():
                 if len(chosen_resources):
                     all_chosen_resources[region] = chosen_resources
                 all_execution_status_alert_levels.append(resources_execution_status.get('alert_level'))
-                region_execution_status_message = str(region) + " - " + str(resources_execution_status.get('status_message'))
-                flash(region_execution_status_message, resources_execution_status.get('alert_level'))
             
             tag_group_inventory = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
             tag_groups_all_info, tag_groups_execution_status = tag_group_inventory.get_all_tag_groups_key_values(tag_tamer_parameters.get('base_region'), **session_credentials)
@@ -624,28 +620,40 @@ def tag_resources():
 def apply_tags_to_resources():
     user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
+    print("The form contents are: ", request.form)
     if user_email and session_credentials.get('AccessKeyId'):
-        if request.form.getlist('resources_to_tag'):
-            resources_to_tag = []
-            resources_to_tag = request.form.getlist('resources_to_tag')
-            
-            form_contents = request.form.to_dict()
-            form_contents.pop("resources_to_tag")
-        
-            resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-            chosen_resources_to_tag = resources_tags(resource_type, unit, region) 
-            form_contents.pop("resource_type")
-            form_contents.pop("csrf_token")
-
-            chosen_tags = list()
-            for key, value in form_contents.items():
-                if value:
+        chosen_tags = list()
+        all_resources_to_tag = dict()
+        resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
+        form_contents = request.form.to_dict()
+        form_contents.pop("csrf_token")
+        form_contents.pop("resource_type")
+        for key, value in form_contents.items():
+            if re.search("^resource", key):
+                resource_metadata = list()
+                resource_metadata = key.split(",")
+                print("The resource metadata is: ", resource_metadata)
+                # resource_metadata is a list of "resource",region,resource_id
+                if not all_resources_to_tag.get(resource_metadata[1]):
+                    all_resources_to_tag[resource_metadata[1]] = list()
+                all_resources_to_tag[resource_metadata[1]].append(resource_metadata[2])
+                print("All the resources to tag are: ", all_resources_to_tag)
+                continue
+            if value:
                     tag_kv = dict()
                     tag_kv["Key"] = key
                     tag_kv["Value"] = value
                     chosen_tags.append(tag_kv)
+
+        all_updated_sorted_tagged_inventory = dict()
+        all_execution_status_alert_levels = list()
+        for region, resources_to_tag in all_resources_to_tag.items():
+            chosen_resources_to_tag = resources_tags(resource_type, unit, region)     
             execution_status = chosen_resources_to_tag.set_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
-            flash(execution_status['status_message'], execution_status['alert_level'])
+            all_execution_status_alert_levels.append(execution_status.get('alert_level'))
+            region_execution_status_message = str(region) + " - " + str(execution_status.get('status_message'))
+            flash(region_execution_status_message, execution_status.get('alert_level'))
+            
             if execution_status.get('alert_level') == 'success':
                 updated_sorted_tagged_inventory = dict()
                 filter_tags = dict()
@@ -657,17 +665,16 @@ def apply_tags_to_resources():
                 all_sorted_tagged_inventory, all_sorted_tagged_inventory_execution_status = chosen_resources_to_tag.get_resources_tags(**session_credentials)
                 if all_sorted_tagged_inventory_execution_status.get('alert_level') == 'success':
                     for resource_id in resources_to_tag:
-                        updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]   
-                    return render_template('updated-tags.html', inventory=updated_sorted_tagged_inventory)
-                else:
-                    return render_template('blank.html')
+                        updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]
+                    all_updated_sorted_tagged_inventory[region] = updated_sorted_tagged_inventory
             else:
                 log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 flash('You are not authorized to view these resources', 'danger')
                 return render_template('blank.html')
+
+        if len(all_updated_sorted_tagged_inventory):
+            return render_template('updated-tags.html', all_updated_inventory=all_updated_sorted_tagged_inventory)
         else:
-            log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-            flash('You are not authorized to view these resources', 'danger')
             return render_template('blank.html')
     else:
         log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
@@ -766,7 +773,7 @@ def find_config_rules():
 
         #Get the AWS Config Rules
         config_rules_ids_names = dict()
-        config_rules = config(region, **session_credentials)
+        config_rules = config(tag_tamer_parameters.get('base_region'), **session_credentials)
         config_rules_ids_names, config_rules_execution_status = config_rules.get_config_rules_ids_names()
         
         if config_rules_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
@@ -814,7 +821,7 @@ def set_config_rules():
                     tag_groups_keys_values[value_name] = tag_group_values_string
                     tag_count+=1
 
-            config_rules = config(region, **session_credentials)
+            config_rules = config(tag_tamer_parameters.get('base_region'), **session_credentials)
             set_rules_execution_status = config_rules.set_config_rules(tag_groups_keys_values, config_rule_id)
             updated_config_rule, get_rule_execution_status = config_rules.get_config_rule(config_rule_id)
             flash(set_rules_execution_status['status_message'], set_rules_execution_status['alert_level'])
