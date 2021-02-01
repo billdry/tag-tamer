@@ -377,7 +377,7 @@ class resources_tags:
             return named_resource_inventory, rds_clusters_status
 
         # Handle case where there are no untagged resources
-        if not named_resource_inventory:
+        if not len(named_resource_inventory):
             named_resource_inventory["No Resource Found"] = "No Resource Found"
 
         # Sort the resources based on the resource's name
@@ -441,40 +441,6 @@ class resources_tags:
             aws_access_key_id=self.session_credentials['AccessKeyId'],
             aws_secret_access_key=self.session_credentials['SecretKey'],
             aws_session_token=self.session_credentials['SessionToken'])
-
-        """
-        # Create a csv file of returned results for downloading
-        def _download_csv(region, inventory, user_name):
-            download_file = "./downloads/" + self.user_name + "-download.csv"
-            file_contents = list()
-            header_row = list()
-            header_row.append("AWS Region")
-            header_row.append("Resource ID")
-            max_tags = 0
-            for resource_id, tags in inventory.items():
-                row = list()
-                if len(tags) > max_tags:
-                    max_tags = len(tags)
-                row.append(region)
-                row.append(resource_id)
-                for key, value in tags.items():
-                    row.append(key)
-                    row.append(value)
-                file_contents.append(row)
-            iterator = 1
-            while iterator <= max_tags:
-                tag_key_header = "Tag Key" + str(iterator)
-                header_row.append(tag_key_header)
-                tag_value_header = "Tag Value" + str(iterator)
-                header_row.append(tag_value_header)
-                iterator += 1
-            with open(download_file, "a", newline="") as file:
-                writer = csv.writer(file)
-                writer.writerow(header_row)
-                writer.writerows(file_contents)
-            file.close()
-            return download_file
-        """
 
         # Interate through resources & inject resource ID's with user-defined tag key:value pairs per resource into a nested dictionary
         # indexed by resource ID

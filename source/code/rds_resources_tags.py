@@ -44,6 +44,8 @@ class rds_resources_tags:
         tag_value1_state = True if self.filter_tags.get('tag_value1') else False
         tag_key2_state = True if self.filter_tags.get('tag_key2') else False
         tag_value2_state = True if self.filter_tags.get('tag_value2') else False
+        if not self.filter_tags.get('conjunction'):
+            self.filter_tags['conjunction'] = 'AND'
         resource_inventory = dict()
 
         self.session_credentials = {}
@@ -442,7 +444,7 @@ class rds_resources_tags:
                         ResourceName=resource_arn,
                         Tags=chosen_tags
                     )
-                    my_status.success(message='Tags updated successfully!')
+                    my_status.success(message='RDS Cluster tags updated successfully!')
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
                     resources_updated_tags["No Resources Found"] = "No Tags Applied"

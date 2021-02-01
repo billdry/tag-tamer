@@ -620,7 +620,6 @@ def tag_resources():
 def apply_tags_to_resources():
     user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
-    print("The form contents are: ", request.form)
     if user_email and session_credentials.get('AccessKeyId'):
         chosen_tags = list()
         all_resources_to_tag = dict()
@@ -632,12 +631,10 @@ def apply_tags_to_resources():
             if re.search("^resource", key):
                 resource_metadata = list()
                 resource_metadata = key.split(",")
-                print("The resource metadata is: ", resource_metadata)
                 # resource_metadata is a list of "resource",region,resource_id
                 if not all_resources_to_tag.get(resource_metadata[1]):
                     all_resources_to_tag[resource_metadata[1]] = list()
                 all_resources_to_tag[resource_metadata[1]].append(resource_metadata[2])
-                print("All the resources to tag are: ", all_resources_to_tag)
                 continue
             if value:
                     tag_kv = dict()
@@ -661,6 +658,7 @@ def apply_tags_to_resources():
                 all_resource_id_names, all_resource_id_names_status = chosen_resources_to_tag.get_resources(filter_tags, **session_credentials)
                 claims = aws_auth.claims
                 session_credentials["chosen_resources"] = all_resource_id_names
+                session_credentials["region"] = region
                 session_credentials["user_name"] = claims.get('username')
                 all_sorted_tagged_inventory, all_sorted_tagged_inventory_execution_status = chosen_resources_to_tag.get_resources_tags(**session_credentials)
                 if all_sorted_tagged_inventory_execution_status.get('alert_level') == 'success':
