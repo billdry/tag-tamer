@@ -299,11 +299,11 @@ class rds_resources_tags:
                     tagged_resource_inventory[resource_id_name[0]] = sorted_resource_tags
                     my_status.success(message='Resources and tags found!')
             else:
-                tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
+                tagged_resource_inventory["No Resource Found"] = {"No Tag Keys Found": "No Tag Values Found"}
                 my_status.warning(message='No AWS resources found!')
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
-            tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
+            tagged_resource_inventory["No Resource Found"] = {"No Tag Keys Found": "No Tag Values Found"}
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
                 
                 my_status.error(message='You are not authorized to view these resources')

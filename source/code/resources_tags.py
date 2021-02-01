@@ -548,7 +548,7 @@ class resources_tags:
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
-                tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
+                tagged_resource_inventory["No Resource Found"] = {"No Tag Keys Found": "No Tag Values Found"}
                 if error.response['Error']['Code'] == 'AccessDeniedException' or \
                     error.response['Error']['Code'] == 'UnauthorizedOperation' or \
                     error.response['Error']['Code'] == 'AccessDenied':
@@ -591,7 +591,7 @@ class resources_tags:
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
-                tagged_resource_inventory["No Resource Found"] = {"No Tags Found": "No Tags Found"}
+                tagged_resource_inventory["No Resource Found"] = {"No Tag Keys Found": "No Tag Values Found"}
                 if error.response['Error']['Code'] == 'AccessDeniedException' or \
                     error.response['Error']['Code'] == 'UnauthorizedOperation' or \
                     error.response['Error']['Code'] == 'AccessDenied':

@@ -19,18 +19,6 @@ SPDX-License-Identifier: MIT-0 -->
     />
   </head>
   <body>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    {% for category, message in messages %}
-    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        <span>{{ message }}</span>
-        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-    </div>
-    {% endfor %}
-    {% endif %}
-    {% endwith %}
     <div class="container-fluid">
       <h3 style="text-align: center">
         Select any tag keys & values to use as search filters then press submit; otherwise, just press submit. 

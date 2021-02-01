@@ -92,7 +92,7 @@ class get_tag_groups:
         
         return tag_group_key_values, self.my_status.get_status()
 
-    #Returns a list of 3-item groups where every 3-item group includes actual_tag_group_name, actual_tag_group_key
+    #Returns a list of 3-item lists where every 3-item list includes actual_tag_group_name, actual_tag_group_key
     #& a list[actual_tag_group_values]
     def get_all_tag_groups_key_values(self, region, **session_credentials):
         all_tag_groups_info = list()

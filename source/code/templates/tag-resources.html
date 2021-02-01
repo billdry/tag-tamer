@@ -19,22 +19,29 @@ SPDX-License-Identifier: MIT-0 -->
                         <table class="table table-borderless">
                             <tbody>
                                 <tr>
-                                    <td>Hold down the Control key to select multiple AWS resources to tag from the list, below.</td>
-                                </tr>
-                                <tr>
-                                    <td>Resource name -- Resource ID</td>
+                                    <td>Check the box beside every resource you want to tag.</td>
                                 </tr>
                             </tbody>
                         </table>
 
                         <form method="post" action="{{ url_for('apply_tags_to_resources') }}">  
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>          
-                                    <div class="form-group">
-                                        <select multiple class="custom-select" id="FormControlSelect1" name="resources_to_tag" size="10">
-                                        {% for id_name in resource_inventory %}
-                                            <option  value="{{ id_name[0] }}">{{ id_name[1] }}  --  {{ id_name[0] }}</option>
+                                    <div class="form-check">
+                                        {% for region, resource_inventory in all_resource_inventory.items() %}
+                                            <h5 style="text-align:center;">AWS region: <span style="color:MediumSeaGreen;">{{ region }}</span></h5>    
+                                            <p>Resource name -- Resource ID</p>
+                                            <table class="table table-sm table-bordered table-hover">
+                                                <tbody>
+                                            {% for id_name in resource_inventory %}
+                                                <tr>
+                                                        <td><input class="form-check-input" type="checkbox" id="{{ region }},resources_to_tag" name="{{ region }},resources_to_tag" value="{{ region }},{{ id_name[0] }}">
+                                                        <label class="form-check-label" for="{{ region }},resources_to_tag">{{ id_name[1] }}  --  {{ id_name[0] }}</label></td>
+                                                </tr>
+                                            {% endfor %}
+                                                </tbody>
+                                            </table>
+                                            <p></p>
                                         {% endfor %}
-                                        </select>
                                     </div>
                             <p>Once you select your resources & tags, click the "Tag Selected Resources" button, below.</p>
                             <br>

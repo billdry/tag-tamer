@@ -525,17 +525,32 @@ def tag_based_search():
     if user_email and session_credentials.get('AccessKeyId'):
         if request.args.get('resource_type'):
             resource_type, unit = get_resource_type_unit(request.args.get('resource_type'))
-            inventory = resources_tags(resource_type, unit, tag_tamer_parameters.get('base_region'))
-            selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**session_credentials)
-            selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**session_credentials)
-            if execution_status_tag_keys.get('alert_level') == 'success' and execution_status_tag_values.get('alert_level') == 'success':
+            all_execution_status_alert_levels = list()
+            all_selected_tag_keys = list()
+            all_selected_tag_values = list()
+            for region in validated_regions:
+                inventory = resources_tags(resource_type, unit, region)
+                selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**session_credentials)
+                all_selected_tag_keys = all_selected_tag_keys + selected_tag_keys
+                all_execution_status_alert_levels.append(execution_status_tag_keys.get('alert_level'))
+                selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**session_credentials)
+                all_selected_tag_values = all_selected_tag_values + selected_tag_values
+                all_execution_status_alert_levels.append(execution_status_tag_values.get('alert_level'))
+            
+            #Remove duplicate tag values & sort
+            all_selected_tag_keys = list(set(all_selected_tag_keys))
+            all_selected_tag_keys.sort(key=str.lower)
+            all_selected_tag_values = list(set(all_selected_tag_values))
+            all_selected_tag_values.sort(key=str.lower)
+            
+            if 'success' in all_execution_status_alert_levels:
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 return render_template('tag-search.html',
                         destination_route=request.args.get('destination_route'),
                         resource_type=request.args.get('resource_type'),
-                        tag_keys=selected_tag_keys, 
-                        tag_values=selected_tag_values)
-            elif execution_status_tag_keys.get('alert_level') == 'warning' or execution_status_tag_values.get('alert_level') == 'warning':
+                        tag_keys=all_selected_tag_keys, 
+                        tag_values=all_selected_tag_values)
+            elif 'warning' in all_execution_status_alert_levels:
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 flash(execution_status_tag_keys['status_message'], execution_status_tag_keys['alert_level'])
                 return render_template('blank.html')
@@ -572,15 +587,24 @@ def tag_resources():
                 filter_elements['conjunction'] = request.form.get('conjunction')
             
             resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-            chosen_resource_inventory = resources_tags(resource_type, unit, region)
-            chosen_resources = OrderedDict()
-            chosen_resources, resources_execution_status = chosen_resource_inventory.get_resources(filter_elements, **session_credentials)
+            all_execution_status_alert_levels = list()
+            all_chosen_resources = dict()
+            for region in validated_regions:
+                chosen_resource_inventory = resources_tags(resource_type, unit, region)
+                chosen_resources = OrderedDict()
+                chosen_resources, resources_execution_status = chosen_resource_inventory.get_resources(filter_elements, **session_credentials)
+                # Only include AWS regions with filtered resources 
+                if len(chosen_resources):
+                    all_chosen_resources[region] = chosen_resources
+                all_execution_status_alert_levels.append(resources_execution_status.get('alert_level'))
+                region_execution_status_message = str(region) + " - " + str(resources_execution_status.get('status_message'))
+                flash(region_execution_status_message, resources_execution_status.get('alert_level'))
             
             tag_group_inventory = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
-            tag_groups_all_info, tag_groups_execution_status = tag_group_inventory.get_all_tag_groups_key_values(region, **session_credentials)
-            if resources_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
+            tag_groups_all_info, tag_groups_execution_status = tag_group_inventory.get_all_tag_groups_key_values(tag_tamer_parameters.get('base_region'), **session_credentials)
+            if 'success' in all_execution_status_alert_levels and tag_groups_execution_status.get('alert_level') == 'success':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-                return render_template('tag-resources.html', resource_type=resource_type, resource_inventory=chosen_resources, tag_groups_all_info=tag_groups_all_info) 
+                return render_template('tag-resources.html', resource_type=resource_type, all_resource_inventory=all_chosen_resources, tag_groups_all_info=tag_groups_all_info) 
             else:
                 log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 flash('You are not authorized to modify these resources', 'danger')
