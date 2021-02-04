@@ -369,6 +369,11 @@ Resources:
       - updated_at
       - website
       - zoneinfo
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: F78
+            reason: "Works as designed.  If Tag Tamer admins choose to require MFA for access, they can enable it."
 
   TagTamerCognitoIdentityPool:
     Type: AWS::Cognito::IdentityPool

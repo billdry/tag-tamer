@@ -589,6 +589,12 @@ Resources:
         EmailMessage: 'Your Tag Tamer verification code is {####}. '
         EmailSubject: Your Tag Tamer verification code
         DefaultEmailOption: CONFIRM_WITH_CODE
+    Metadata:
+        cfn_nag:
+          rules_to_suppress:
+          - id: F78
+            reason: "Works as designed.  If Tag Tamer admins choose to require MFA for access, they can enable it."
+
   TagTamerUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
