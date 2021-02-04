@@ -17,7 +17,8 @@
         "jwt-access-cookie-name",
         "jwt-cookie-csrf-protect",
         "jwt-cookie-secure",
-        "jwt-token-location"
+        "jwt-token-location",
+        "multi-account-role-arns"
     ],
     "tag_key_regex": "^\\w[\\w\\- ]{0,125}\\w$",
     "tag_value_regex": "^\\w[\\w\\- ]{0,223}\\w$",
