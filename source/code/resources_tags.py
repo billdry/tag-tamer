@@ -55,12 +55,15 @@ class resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
         
-        client = this_session.client(self.resource_type, region_name=self.region)
+        if session_credentials['account_role_session']:
+            client = session_credentials['account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         # Nested function to get resources that match user-selected tag keys & values
         def _get_filtered_resources(client_command):
@@ -248,7 +251,10 @@ class resources_tags:
             else:
                 try:
                     named_resources = _get_named_resources('describe_instances')
-                    selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                    if session_credentials['account_role_session']:
+                        selected_resource_type = session_credentials['account_role_session'].resource(self.resource_type, region_name=self.region)
+                    else:
+                        selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                     # Get all the resource ID's then add actual names to those having existing "name tags"
                     for resource in selected_resource_type.instances.all():
                         named_resource_inventory[resource.id] = 'no name found'
@@ -386,7 +392,7 @@ class resources_tags:
         return ordered_inventory, my_status.get_status()
 
     # Create a csv file of returned results for downloading
-    def download_csv(self, file_use_method, region, inventory, user_name):
+    def download_csv(self, file_use_method, account_number, region, inventory, user_name):
         download_file = "./downloads/" + user_name + "-download.csv"
         file_contents = list()
         max_tags = 0
@@ -394,6 +400,7 @@ class resources_tags:
             row = list()
             if len(tags) > max_tags:
                 max_tags = len(tags)
+            row.append(account_number)
             row.append(region)
             row.append(resource_id)
             for key, value in tags.items():
@@ -402,6 +409,7 @@ class resources_tags:
             file_contents.append(row)
         if file_use_method == "w":
             header_row = list()
+            header_row.append("AWS Account Number")
             header_row.append("AWS Region")
             header_row.append("Resource ID")
             iterator = 1
@@ -437,17 +445,27 @@ class resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials.get('AccessKeyId')
         self.session_credentials['SecretKey'] = session_credentials.get('SecretKey')
         self.session_credentials['SessionToken'] = session_credentials.get('SessionToken')
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials['account_role_session']:
+            client = session_credentials['account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
+
+        #this_session = boto3.session.Session(
+        #    aws_access_key_id=self.session_credentials['AccessKeyId'],
+        #    aws_secret_access_key=self.session_credentials['SecretKey'],
+        #    aws_session_token=self.session_credentials['SessionToken'])
 
         # Interate through resources & inject resource ID's with user-defined tag key:value pairs per resource into a nested dictionary
         # indexed by resource ID
         if self.unit == 'instances':
             try:
                 if self.chosen_resources:
-                    client = this_session.client(self.resource_type, region_name=self.region)
+                    #client = this_session.client(self.resource_type, region_name=self.region)
                     for resource_id_name in self.chosen_resources:
                         response = client.describe_tags(
                             Filters=[

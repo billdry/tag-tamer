@@ -24,10 +24,6 @@ def date_time_now():
     time_string = strftime("%d-%B-%Y at %H:%M:%S UTC", now)
     return time_string
 
-# Return the current epoch time (total number of seconds since January 1, 1970)
-#def epoch_time_now():
-#    now = gmtime()
-#    return now
 
 # Define execution_status class to return the execution status of Tag Tamer functions
 # alert_level variable aligns to getbootstrap_com/docs/4.5/components/alerts/
@@ -65,9 +61,14 @@ class execution_status:
 # Inputs: IAM role ARN, user email, user name & user source IP address or source hostname all as keyword arguments
 def assume_role_multi_account(**kwargs):
     my_status = execution_status()
-    sts_client = boto3.client("sts")
+    this_session = boto3.session.Session(
+                aws_access_key_id=kwargs['session_credentials']['AccessKeyId'],
+                aws_secret_access_key=kwargs['session_credentials']['SecretKey'],
+                aws_session_token=kwargs['session_credentials']['SessionToken'])
+    sts_client = this_session.client('sts')
+    
     if kwargs.get('user_id') and kwargs.get('user_email') and kwargs.get('user_source'):
-        session_name = kwargs.get('user_id') + '-tag-tamer-session-' + str(gmtime())
+        session_name = kwargs.get('user_id') + '-tag-tamer-session-' + str(time())
     else:
         log.error("Failed to invoke \"{}\" on {}".format(sys._getframe().f_code.co_name, date_time_now()))
         my_status.error()
@@ -77,9 +78,10 @@ def assume_role_multi_account(**kwargs):
     try:
         response = dict()
         response = sts_client.assume_role(
-            RoleArn=kwargs.get('role_arn'),
+            RoleArn=kwargs.get('account_role_arn'),
             RoleSessionName=session_name
         )
+        log.info("The assume role response is {}".format(response))
         if len(response):
             session_object = Session(
                 aws_access_key_id=response["Credentials"]["AccessKeyId"],

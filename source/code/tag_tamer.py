@@ -5,7 +5,7 @@
 # Tag Tamer Admin UI
 
 # Import administrative functions
-from admin import date_time_now
+from admin import date_time_now, execution_status, assume_role_multi_account
 # Import Collections module to manipulate dictionaries
 import collections
 from collections import defaultdict, OrderedDict
@@ -85,9 +85,7 @@ all_current_regions = get_aws_regions()
 additional_regions = tag_tamer_parameters.get('additional_regions')
 validated_regions = list()
 if all_current_regions:
-    #if tag_tamer_parameters.get('base_region'):
     if tag_tamer_parameters.get('base_region') in all_current_regions:
-        #region = tag_tamer_parameters.get('base_region')
         validated_regions.append(tag_tamer_parameters.get('base_region'))
     else:
         log.info("Terminating Tag Tamer application on {} because the base AWS region is not available.  Please check the tag_tamer_parameters.json file.".format(date_time_now()))
@@ -111,6 +109,10 @@ ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters.get('ssm_
 if not ssm_parameters:
     log.info("Terminating Tag Tamer application on {} because no AWS SSM Parameters are available.  Please check the tag_tamer_parameters.json file & the AWS SSM Parameter Store.".format(date_time_now()))
     sys.exit()
+
+# Get AWS account roles
+multi_account_roles = ssm_parameters.get('multi-account-role-arns').split(',')
+#print("The multi-account roles are: ", multi_account_roles)
 
 # Instantiate flask API application
 app = Flask(__name__)
@@ -264,22 +266,36 @@ def found_tags():
             # Multi-region look-up
             all_execution_status_alert_levels = list()
             all_sorted_tagged_inventory = dict()
+            region_execution_status_alert_levels = list()
+            region_sorted_tagged_inventory = dict()
+            claims = aws_auth.claims
             file_use_method = "w"
-            for region in validated_regions:
-                inventory = resources_tags(resource_type, unit, region)
-                chosen_resources = OrderedDict()
-                chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
-                claims = aws_auth.claims
-                session_credentials["region"] = region
-                session_credentials["chosen_resources"] = chosen_resources
-                sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
-                inventory.download_csv(file_use_method, region, sorted_tagged_inventory, claims.get('username'))
-                # Set file_use_method to append "a" for remaining validated regions
-                file_use_method = "a"
-                all_sorted_tagged_inventory[region] = sorted_tagged_inventory
-                all_execution_status_alert_levels.append(execution_status.get('alert_level'))
-                region_execution_status_message = str(region) + " - " + str(execution_status.get('status_message'))
-                flash(region_execution_status_message, execution_status.get('alert_level'))
+            for account_role_arn in multi_account_roles:
+                role_components = account_role_arn.split(':')
+                account_number = role_components[4]
+                kwargs = dict()
+                kwargs['account_role_arn'] = account_role_arn
+                kwargs['user_email'] = user_email
+                kwargs['user_id'] = claims.get('username')
+                kwargs['user_source'] = user_source
+                kwargs['session_credentials'] = session_credentials
+                account_role_session = assume_role_multi_account(**kwargs)
+                session_credentials['account_role_session'] = account_role_session 
+                for region in validated_regions:
+                    inventory = resources_tags(resource_type, unit, region)
+                    chosen_resources = OrderedDict()
+                    chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
+                    session_credentials["region"] = region
+                    session_credentials["chosen_resources"] = chosen_resources
+                    sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
+                    inventory.download_csv(file_use_method, account_number, region, sorted_tagged_inventory, claims.get('username'))
+                    # Set file_use_method to append "a" for remaining validated regions
+                    file_use_method = "a"
+                    region_sorted_tagged_inventory[region] = sorted_tagged_inventory
+                    all_execution_status_alert_levels.append(execution_status.get('alert_level'))
+                    region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(execution_status.get('status_message'))
+                    flash(region_execution_status_message, execution_status.get('alert_level'))
+                all_sorted_tagged_inventory[account_number] = region_sorted_tagged_inventory
             # Execution status will be "success" if at least one AWS region contained the tag-filtered resources
             if 'success' in all_execution_status_alert_levels:
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))

@@ -144,6 +144,7 @@ arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
             "Action": [
                 "dynamodb:PutItem",
                 "dynamodb:GetItem",
+                "dynamodb:Scan",
                 "dynamodb:UpdateItem"
             ],
             "Resource": [
