@@ -49,10 +49,14 @@ SPDX-License-Identifier: MIT-0 -->
           {% for instance, tags in region_inventory.items() %}
           <tr>
             <thead>
+              <th scope="col">Account Number</th>
+              <th scope="col">Region</th>
               <th scope="col">Resource ID</th>
               <th scope="col">Found Tags</th>
             </thead>
-            <td>{{ account_number }} -- {{ region }} -- {{ instance }}</td>
+            <td>{{ account_number }}</td>
+            <td>{{ region }}</td>
+            <td>{{ instance }}</td>
             <td>
               <table
                 style="width: 600px"

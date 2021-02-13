@@ -266,11 +266,9 @@ def found_tags():
             all_execution_status_alert_levels = list()
             all_sorted_tagged_inventory = dict()
             #region_execution_status_alert_levels = list()
-            region_sorted_tagged_inventory = dict()
             claims = aws_auth.claims
-            file_open_method = "w"
 
-            # Multi-region look-up
+            # Multi-region resource tag getter
             def _get_multi_region_tags(account_number, file_open_method):
                 for region in validated_regions:
                     inventory = resources_tags(resource_type, unit, region)
@@ -294,12 +292,14 @@ def found_tags():
                 ssm_parameters.get('cognito-default-region-value'))
 
             base_account_number = re.search('\d{12}', cognito_user_group_arn)
+            file_open_method = "w"
+            region_sorted_tagged_inventory = dict()
+            # Get base account's tags from all regions
             region_sorted_tagged_inventory = _get_multi_region_tags(base_account_number.group(), file_open_method)
             all_sorted_tagged_inventory[base_account_number.group()] = region_sorted_tagged_inventory
             
-            # Get multi account tags from all regions
+            # Get additional multi accounts' tags from all regions
             for account_number in multi_accounts:
-                file_open_method = "a"
                 # Swap account number in Cognito user's assigned IAM role ARN
                 # Cognito user's assumed IAM role name must be identical in all AWS accounts  
                 account_role_arn = re.sub('\d{12}', account_number, cognito_user_group_arn)
@@ -311,8 +311,12 @@ def found_tags():
                 kwargs['session_credentials'] = session_credentials
                 multi_account_role_session = assume_role_multi_account(**kwargs)
                 session_credentials['multi_account_role_session'] = multi_account_role_session 
+                file_open_method = "a"
+                region_sorted_tagged_inventory = dict()
+                # Get the multi account's tags from all regions
                 region_sorted_tagged_inventory = _get_multi_region_tags(account_number, file_open_method)
                 all_sorted_tagged_inventory[account_number] = region_sorted_tagged_inventory
+
             # Execution status will be "success" if at least one AWS region contained the tag-filtered resources
             if 'success' in all_execution_status_alert_levels:
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))

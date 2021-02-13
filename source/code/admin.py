@@ -81,7 +81,6 @@ def assume_role_multi_account(**kwargs):
             RoleArn=kwargs.get('account_role_arn'),
             RoleSessionName=session_name
         )
-        log.info("The assume role response is {}".format(response))
         if len(response):
             session_object = Session(
                 aws_access_key_id=response["Credentials"]["AccessKeyId"],
