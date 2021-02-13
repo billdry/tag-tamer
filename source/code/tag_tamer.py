@@ -110,8 +110,8 @@ if not ssm_parameters:
     log.info("Terminating Tag Tamer application on {} because no AWS SSM Parameters are available.  Please check the tag_tamer_parameters.json file & the AWS SSM Parameter Store.".format(date_time_now()))
     sys.exit()
 
-# Get AWS account roles
-multi_account_roles = ssm_parameters.get('multi-account-role-arns').split(',')
+# Get AWS accounts
+multi_accounts = ssm_parameters.get('multi-accounts').split(',')
 #print("The multi-account roles are: ", multi_account_roles)
 
 # Instantiate flask API application
@@ -206,7 +206,7 @@ def index():
 
     user_email, user_source = get_user_email_ip(request)
     
-    # Get the user's assigned Cognito user pool group
+    # Get the user's assigned Cognito user pool group's IAM role ARN
     cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
         ssm_parameters.get('cognito-user-pool-id-value'),
         ssm_parameters.get('cognito-default-region-value'))
@@ -263,24 +263,15 @@ def found_tags():
             resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
             log.debug('function: {} - Received the request arguments'.format(sys._getframe().f_code.co_name))
             
-            # Multi-region look-up
             all_execution_status_alert_levels = list()
             all_sorted_tagged_inventory = dict()
-            region_execution_status_alert_levels = list()
+            #region_execution_status_alert_levels = list()
             region_sorted_tagged_inventory = dict()
             claims = aws_auth.claims
-            file_use_method = "w"
-            for account_role_arn in multi_account_roles:
-                role_components = account_role_arn.split(':')
-                account_number = role_components[4]
-                kwargs = dict()
-                kwargs['account_role_arn'] = account_role_arn
-                kwargs['user_email'] = user_email
-                kwargs['user_id'] = claims.get('username')
-                kwargs['user_source'] = user_source
-                kwargs['session_credentials'] = session_credentials
-                account_role_session = assume_role_multi_account(**kwargs)
-                session_credentials['account_role_session'] = account_role_session 
+            file_open_method = "w"
+
+            # Multi-region look-up
+            def _get_multi_region_tags(account_number, file_open_method):
                 for region in validated_regions:
                     inventory = resources_tags(resource_type, unit, region)
                     chosen_resources = OrderedDict()
@@ -288,13 +279,39 @@ def found_tags():
                     session_credentials["region"] = region
                     session_credentials["chosen_resources"] = chosen_resources
                     sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
-                    inventory.download_csv(file_use_method, account_number, region, sorted_tagged_inventory, claims.get('username'))
-                    # Set file_use_method to append "a" for remaining validated regions
-                    file_use_method = "a"
                     region_sorted_tagged_inventory[region] = sorted_tagged_inventory
+                    inventory.download_csv(file_open_method, account_number, region, sorted_tagged_inventory, claims.get('username'))
+                    # Set file_use_method to append "a" for remaining validated regions
+                    file_open_method = "a"
                     all_execution_status_alert_levels.append(execution_status.get('alert_level'))
                     region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(execution_status.get('status_message'))
                     flash(region_execution_status_message, execution_status.get('alert_level'))
+                return region_sorted_tagged_inventory
+
+            # Get the user's assigned Cognito user pool group's IAM role ARN
+            cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
+                ssm_parameters.get('cognito-user-pool-id-value'),
+                ssm_parameters.get('cognito-default-region-value'))
+
+            base_account_number = re.search('\d{12}', cognito_user_group_arn)
+            region_sorted_tagged_inventory = _get_multi_region_tags(base_account_number.group(), file_open_method)
+            all_sorted_tagged_inventory[base_account_number.group()] = region_sorted_tagged_inventory
+            
+            # Get multi account tags from all regions
+            for account_number in multi_accounts:
+                file_open_method = "a"
+                # Swap account number in Cognito user's assigned IAM role ARN
+                # Cognito user's assumed IAM role name must be identical in all AWS accounts  
+                account_role_arn = re.sub('\d{12}', account_number, cognito_user_group_arn)
+                kwargs = dict()
+                kwargs['account_role_arn'] = account_role_arn
+                kwargs['user_email'] = user_email
+                kwargs['user_id'] = claims.get('username')
+                kwargs['user_source'] = user_source
+                kwargs['session_credentials'] = session_credentials
+                multi_account_role_session = assume_role_multi_account(**kwargs)
+                session_credentials['multi_account_role_session'] = multi_account_role_session 
+                region_sorted_tagged_inventory = _get_multi_region_tags(account_number, file_open_method)
                 all_sorted_tagged_inventory[account_number] = region_sorted_tagged_inventory
             # Execution status will be "success" if at least one AWS region contained the tag-filtered resources
             if 'success' in all_execution_status_alert_levels:

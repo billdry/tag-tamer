@@ -56,8 +56,8 @@ class resources_tags:
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
         
-        if session_credentials['account_role_session']:
-            client = session_credentials['account_role_session'].client(self.resource_type, region_name=self.region)
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
                 aws_access_key_id=self.session_credentials['AccessKeyId'],
@@ -251,8 +251,8 @@ class resources_tags:
             else:
                 try:
                     named_resources = _get_named_resources('describe_instances')
-                    if session_credentials['account_role_session']:
-                        selected_resource_type = session_credentials['account_role_session'].resource(self.resource_type, region_name=self.region)
+                    if session_credentials.get('multi_account_role_session'):
+                        selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
                     else:
                         selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
                     # Get all the resource ID's then add actual names to those having existing "name tags"
@@ -392,7 +392,7 @@ class resources_tags:
         return ordered_inventory, my_status.get_status()
 
     # Create a csv file of returned results for downloading
-    def download_csv(self, file_use_method, account_number, region, inventory, user_name):
+    def download_csv(self, file_open_method, account_number, region, inventory, user_name):
         download_file = "./downloads/" + user_name + "-download.csv"
         file_contents = list()
         max_tags = 0
@@ -407,7 +407,7 @@ class resources_tags:
                 row.append(key)
                 row.append(value)
             file_contents.append(row)
-        if file_use_method == "w":
+        if file_open_method == "w":
             header_row = list()
             header_row.append("AWS Account Number")
             header_row.append("AWS Region")
@@ -419,9 +419,9 @@ class resources_tags:
                 tag_value_header = "Tag Value" + str(iterator)
                 header_row.append(tag_value_header)
                 iterator += 1
-        with open(download_file, file_use_method, newline="") as file:
+        with open(download_file, file_open_method, newline="") as file:
             writer = csv.writer(file)
-            if file_use_method == "w":
+            if file_open_method == "w":
                 writer.writerow(header_row)
             writer.writerows(file_contents)
         file.close()
@@ -446,8 +446,8 @@ class resources_tags:
         self.session_credentials['SecretKey'] = session_credentials.get('SecretKey')
         self.session_credentials['SessionToken'] = session_credentials.get('SessionToken')
         
-        if session_credentials['account_role_session']:
-            client = session_credentials['account_role_session'].client(self.resource_type, region_name=self.region)
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
                 aws_access_key_id=self.session_credentials['AccessKeyId'],

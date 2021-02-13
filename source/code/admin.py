@@ -93,13 +93,13 @@ def assume_role_multi_account(**kwargs):
             my_status.success(message='Assumed multi-account role & created user session!')
         else:
             log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" - FAILURE".format(kwargs.get('user_email'), sys._getframe().f_code.co_name, date_time_now(), kwargs.get('user_source')))
-            my_status.error()
+            my_status.error(message='Failed to assume multi-account role & create user session!')
             session_object = False
             return session_object
 
     except ClientError as error:
             log.error("Boto3 API returned error. function: {} - {}".format(sys._getframe().f_code.co_name, error))
-            my_status.error()
+            my_status.error(message='Failed to assume multi-account role & create user session!')
             session_object = False
 
     return session_object
