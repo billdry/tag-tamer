@@ -51,18 +51,16 @@ class eks_clusters_tags:
             self.filter_tags['conjunction'] = 'AND'
         resource_inventory = dict()
 
-        self.session_credentials = {}
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = dict()
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         def _intersection_union_invalid(tag_dict, cluster_name, cluster_arn):
@@ -280,24 +278,22 @@ class eks_clusters_tags:
         tagged_resource_inventory = dict()
 
         self.session_credentials = dict()
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
             if chosen_resources:
                 #client = this_session.client(self.resource_type, region_name=self.region)
                 for resource_id_name in chosen_resources:
-                    resource_tags = {}
+                    resource_tags = dict()
                     eks_cluster_arn= client.describe_cluster(
                         name=resource_id_name[1] 
                         )['cluster']['arn']
@@ -341,17 +337,15 @@ class eks_clusters_tags:
         tag_keys_inventory = list()
 
         self.session_credentials = dict()
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
@@ -412,17 +406,15 @@ class eks_clusters_tags:
         tag_values_inventory = list()
 
         self.session_credentials = dict()
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
@@ -492,26 +484,26 @@ class eks_clusters_tags:
         my_status = execution_status()
         resources_updated_tags = dict()
         tag_dict = dict()
-
+        
+        self.resources_to_tag = resources_to_tag
+        self.chosen_tags = chosen_tags
         self.session_credentials = dict()
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         # for EKS Boto3 API covert list of tags dicts to single key:value tag dict 
-        for tag in chosen_tags:
+        for tag in self.chosen_tags:
             tag_dict[tag['Key']] = tag['Value']
        
-        for resource_arn in resources_to_tag:
+        for resource_arn in self.resources_to_tag:
             #try:
                 #client = this_session.client(self.resource_type, region_name=self.region)
             try:

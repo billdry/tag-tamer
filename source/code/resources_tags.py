@@ -51,10 +51,8 @@ class resources_tags:
         self.filter_tags = filter_tags
         log.debug("The received filter tags are: {}".format(self.filter_tags))
 
-        self.session_credentials = {}
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = dict()
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
@@ -375,8 +373,7 @@ class resources_tags:
 
         elif self.unit == "functions":
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            #named_resource_inventory, lambda_resources_status = functions_inventory.get_lambda_names_ids(self.filter_tags, **self.session_credentials)
-            named_resource_inventory, lambda_resources_status = functions_inventory.get_lambda_names_ids(self.filter_tags, **session_credentials)
+            named_resource_inventory, lambda_resources_status = functions_inventory.get_lambda_names_ids(self.filter_tags, **self.session_credentials)
             return named_resource_inventory, lambda_resources_status
 
         elif self.unit == "clusters":
@@ -435,31 +432,28 @@ class resources_tags:
         #return download_file
 
     # Purpose:  Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
-    # Input arguments are Boto3 session credentials, list of chosen resource tuples & user name making request
+    # Input arguments are Boto3 session credentials including list of chosen resource tuples & user name making request
     def get_resources_tags(self, **session_credentials):
         log.debug('The received session credentials are: %s', session_credentials)
         my_status = execution_status()
         returned_status = dict()
         # Instantiate dictionaries to hold resources & their tags
-        tagged_resource_inventory = {}
-        sorted_tagged_resource_inventory = {}
+        tagged_resource_inventory = dict()
+        sorted_tagged_resource_inventory = dict()
 
         self.chosen_resources = session_credentials.get('chosen_resources')
-        self.user_name = session_credentials.get('user_name')
         self.region = session_credentials.get('region')
 
-        self.session_credentials = {}
-        self.session_credentials['AccessKeyId'] = session_credentials.get('AccessKeyId')
-        self.session_credentials['SecretKey'] = session_credentials.get('SecretKey')
-        self.session_credentials['SessionToken'] = session_credentials.get('SessionToken')
+        self.session_credentials = dict()
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         # Interate through resources & inject resource ID's with user-defined tag key:value pairs per resource into a nested dictionary
@@ -479,8 +473,8 @@ class resources_tags:
                                 }
                             ]
                         )
-                        resource_tags = {}
-                        sorted_resource_tags = {}
+                        resource_tags = dict()
+                        sorted_resource_tags = dict()
                         if response.get('Tags'):
                             for tag in response['Tags']:
                                 if not re.search("^aws:", tag["Key"]):
@@ -517,8 +511,8 @@ class resources_tags:
                                 }
                             ]
                         )
-                        resource_tags = {}
-                        sorted_resource_tags = {}
+                        resource_tags = dict()
+                        sorted_resource_tags = dict()
                         if response.get('Tags'):
                             for tag in response['Tags']:
                                 if not re.search("^aws:", tag["Key"]):
@@ -560,8 +554,8 @@ class resources_tags:
                             else:
                                 my_status.error()
                             response = dict()
-                        resource_tags = {}
-                        sorted_resource_tags = {}
+                        resource_tags = dict()
+                        sorted_resource_tags = dict()
                         if response.get('TagSet'):
                             for tag in response['TagSet']:
                                 if not re.search("^aws:", tag["Key"]):
@@ -587,16 +581,15 @@ class resources_tags:
 
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            #tagged_resource_inventory, returned_status = functions_inventory.get_lambda_resources_tags(self.chosen_resources, **self.session_credentials)
-            tagged_resource_inventory, returned_status = functions_inventory.get_lambda_resources_tags(**session_credentials)
+            tagged_resource_inventory, returned_status = functions_inventory.get_lambda_resources_tags(**self.session_credentials)
         
         elif self.unit == 'clusters':
             clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
-            tagged_resource_inventory, returned_status = clusters_inventory.get_eks_clusters_tags(self.chosen_resources, **self.session_credentials)
+            tagged_resource_inventory, returned_status = clusters_inventory.get_eks_clusters_tags(**self.session_credentials)
 
         elif self.unit == 'rdsclusters':
             rds_clusters_inventory = rds_resources_tags(self.resource_type, self.region)
-            tagged_resource_inventory, returned_status = rds_clusters_inventory.get_rds_resources_tags(self.chosen_resources, **self.session_credentials)
+            tagged_resource_inventory, returned_status = rds_clusters_inventory.get_rds_resources_tags(**self.session_credentials)
 
         sorted_tagged_resource_inventory = OrderedDict(sorted(tagged_resource_inventory.items()))
         
@@ -613,18 +606,16 @@ class resources_tags:
         # Give users ability to find resources with no tags applied
         sorted_tag_keys_inventory.append('<No tags applied>')
 
-        self.session_credentials = {}
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = dict()
+        self.session_credentials = session_credentials
 
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         if self.unit == 'instances':
@@ -703,8 +694,7 @@ class resources_tags:
                     my_status.error()
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            #sorted_tag_keys_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_keys(**self.session_credentials)
-            sorted_tag_keys_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_keys(**session_credentials)
+            sorted_tag_keys_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_keys(**self.session_credentials)
             return sorted_tag_keys_inventory, lambda_resources_status
 
         elif self.unit == 'clusters':
@@ -729,18 +719,16 @@ class resources_tags:
         my_status = execution_status()
         sorted_tag_values_inventory = list()
 
-        self.session_credentials = {}
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = dict()
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         if self.unit == 'instances':
@@ -749,14 +737,16 @@ class resources_tags:
                     selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
                 else:
                     selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                item_count = False
                 for item in selected_resource_type.instances.all():
-                    try:
-                        for tag in item.tags:
-                            if not re.search("^aws:", tag["Key"]) and tag["Value"]:
-                                sorted_tag_values_inventory.append(tag["Value"])
-                    except:
-                        sorted_tag_values_inventory.append("No Tags Found")
-                my_status.success(message='Tag values found!')
+                    for tag in item.tags:
+                        if not re.search("^aws:", tag["Key"]) and tag["Value"]:
+                            sorted_tag_values_inventory.append(tag["Value"])
+                            item_count = True
+                            my_status.success(message='Tag values found!')
+                if not item_count:
+                    sorted_tag_values_inventory.append("No tags values found!")
+                    my_status.warning(message='No tag values found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
@@ -773,14 +763,16 @@ class resources_tags:
                     selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
                 else:
                     selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                item_count = False
                 for item in selected_resource_type.volumes.all():
-                    try:
-                        for tag in item.tags:
-                            if not re.search("^aws:", tag["Key"])  and tag["Value"]:
-                                sorted_tag_values_inventory.append(tag["Value"])
-                    except:
-                        sorted_tag_values_inventory.append("No Tags Found")
-                my_status.success(message='Tag values found!')
+                    for tag in item.tags:
+                        if not re.search("^aws:", tag["Key"])  and tag["Value"]:
+                            sorted_tag_values_inventory.append(tag["Value"])
+                            item_count = True
+                            my_status.success(message='Tag values found!')
+                if not item_count:
+                    sorted_tag_values_inventory.append("No tags values found!")
+                    my_status.warning(message='No tag values found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
@@ -797,14 +789,16 @@ class resources_tags:
                     selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
                 else:
                     selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                item_count = False
                 for item in selected_resource_type.buckets.all():
-                    try:
-                        for tag in selected_resource_type.BucketTagging(item.name).tag_set:
-                            if not re.search("^aws:", tag["Key"])  and tag["Value"]:
-                                sorted_tag_values_inventory.append(tag["Value"])
-                    except:
-                        sorted_tag_values_inventory.append("No Tags Found")
-                my_status.success(message='Tag values found!')
+                    for tag in selected_resource_type.BucketTagging(item.name).tag_set:
+                        if not re.search("^aws:", tag["Key"])  and tag["Value"]:
+                            sorted_tag_values_inventory.append(tag["Value"])
+                            item_count = True
+                            my_status.success(message='Tag values found!')
+                if not item_count:
+                    sorted_tag_values_inventory.append("No tags values found!")
+                    my_status.warning(message='No tag values found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
@@ -817,8 +811,7 @@ class resources_tags:
                     my_status.error()
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            #sorted_tag_values_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_values(**self.session_credentials)
-            sorted_tag_values_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_values(**session_credentials)
+            sorted_tag_values_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_values(**self.session_credentials)
             return sorted_tag_values_inventory, lambda_resources_status
 
         elif self.unit == 'clusters':
@@ -840,22 +833,21 @@ class resources_tags:
     # Purpose:  Setter method to update tags on user-selected resources
     # Input arguments are Boto3 session credentials, list of resource ID's to tag & list of tag dictionaries
     def set_resources_tags(self, resources_to_tag, chosen_tags, **session_credentials):
-
+        self.resources_to_tag = resources_to_tag
+        self.chosen_tags = chosen_tags
         resources_updated_tags = dict()
         my_status = execution_status()
 
         self.session_credentials = dict()
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         if self.unit == 'instances':
@@ -864,11 +856,11 @@ class resources_tags:
                     selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
                 else:
                     selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
-                for resource_id in resources_to_tag:
+                for resource_id in self.resources_to_tag:
                         resource_tag_list = []
                         instance = selected_resource_type.Instance(resource_id)
                         resource_tag_list = instance.create_tags(
-                            Tags=chosen_tags
+                            Tags=self.chosen_tags
                         )
                 resources_updated_tags[resource_id] = resource_tag_list
                 my_status.success(message='Tags updated successfully!')
@@ -888,11 +880,11 @@ class resources_tags:
                     selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
                 else:
                     selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
-                for resource_id in resources_to_tag:
+                for resource_id in self.resources_to_tag:
                         resource_tag_list = []
                         volume = selected_resource_type.Volume(resource_id)
                         resource_tag_list = volume.create_tags(
-                            Tags=chosen_tags
+                            Tags=self.chosen_tags
                         )
                 resources_updated_tags[resource_id] = resource_tag_list
                 my_status.success(message='Tags updated successfully!')
@@ -907,7 +899,7 @@ class resources_tags:
                 else:
                     my_status.error()
         elif self.unit == 'buckets':
-            for resource_id in resources_to_tag:
+            for resource_id in self.resources_to_tag:
                 tag_set_dict = dict()
                 resource_tag_list = list()
                 current_applied_tags = dict()
@@ -928,10 +920,10 @@ class resources_tags:
                         my_status.error()
                 if current_applied_tags.get('TagSet'):
                     for current_tag in current_applied_tags['TagSet']:
-                        for new_tag in chosen_tags:
+                        for new_tag in self.chosen_tags:
                             if new_tag['Key'] != current_tag['Key']:
-                                chosen_tags.append(current_tag)
-                tag_set_dict['TagSet'] = chosen_tags
+                                self.chosen_tags.append(current_tag)
+                tag_set_dict['TagSet'] = self.chosen_tags
                 log.debug("The chosen tags for {} are {}".format(resource_id, tag_set_dict))
                 try:
                     if session_credentials.get('multi_account_role_session'):
@@ -958,18 +950,17 @@ class resources_tags:
                         my_status.error()
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
-            #lambda_resources_status = functions_inventory.set_lambda_resources_tags(resources_to_tag, chosen_tags, **self.session_credentials)
-            lambda_resources_status = functions_inventory.set_lambda_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
+            lambda_resources_status = functions_inventory.set_lambda_resources_tags(self.resources_to_tag, self.chosen_tags, **self.session_credentials)
             return lambda_resources_status
         
         elif self.unit == 'clusters':
             clusters_inventory = eks_clusters_tags(self.resource_type, self.region)
-            eks_clusters_status = clusters_inventory.set_eks_clusters_tags(resources_to_tag, chosen_tags, **self.session_credentials) 
+            eks_clusters_status = clusters_inventory.set_eks_clusters_tags(self.resources_to_tag, self.chosen_tags, **self.session_credentials) 
             return eks_clusters_status
         
         elif self.unit == 'rdsclusters':
             rds_clusters_inventory = rds_resources_tags(self.resource_type, self.region)
-            rds_resources_status = rds_clusters_inventory.set_rds_resources_tags(resources_to_tag, chosen_tags, **self.session_credentials)
+            rds_resources_status = rds_clusters_inventory.set_rds_resources_tags(self.resources_to_tag, self.chosen_tags, **self.session_credentials)
             return rds_resources_status
 
         return my_status.get_status()

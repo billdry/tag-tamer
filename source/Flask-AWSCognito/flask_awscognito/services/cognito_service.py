@@ -45,7 +45,7 @@ class CognitoService:
             "client_id": self.user_pool_client_id,
             "grant_type": "authorization_code",
         }
-        headers = {}
+        headers = dict()
         if self.user_pool_client_secret:
             secret = b64encode(
                 f"{self.user_pool_client_id}:{self.user_pool_client_secret}".encode(

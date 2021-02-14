@@ -407,13 +407,48 @@ def edit_tag_group():
         resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
         all_execution_status_alert_levels = list()
         all_sorted_tag_values_inventory = list()
-        for region in validated_regions:
-            inventory = resources_tags(resource_type, unit, region)
-            sorted_tag_values_inventory, execution_status = inventory.get_tag_values(**session_credentials) 
-            all_sorted_tag_values_inventory = all_sorted_tag_values_inventory + sorted_tag_values_inventory
-            all_execution_status_alert_levels.append(execution_status.get('alert_level'))
-            region_execution_status_message = str(region) + " - " + str(execution_status.get('status_message'))
-            flash(region_execution_status_message, execution_status.get('alert_level'))
+        claims = aws_auth.claims
+
+        # Multi-region resource tag values getter
+        def _get_multi_region_tag_values(account_number, all_sorted_tag_values_inventory):
+            for region in validated_regions:
+                inventory = resources_tags(resource_type, unit, region)
+                sorted_tag_values_inventory, execution_status = inventory.get_tag_values(**session_credentials) 
+                all_sorted_tag_values_inventory = all_sorted_tag_values_inventory + sorted_tag_values_inventory
+                all_execution_status_alert_levels.append(execution_status.get('alert_level'))
+                region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(execution_status.get('status_message'))
+                flash(region_execution_status_message, execution_status.get('alert_level'))
+            return all_sorted_tag_values_inventory
+        
+        # Get the user's assigned Cognito user pool group's IAM role ARN
+        cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
+            ssm_parameters.get('cognito-user-pool-id-value'),
+            ssm_parameters.get('cognito-default-region-value'))
+
+        base_account_number = re.search('\d{12}', cognito_user_group_arn)
+        all_sorted_tag_values_inventory = _get_multi_region_tag_values(base_account_number.group(), all_sorted_tag_values_inventory)
+            #file_open_method = "w"
+            #region_sorted_tagged_inventory = dict()
+        # Get base account's tags from all regions
+        #region_sorted_tagged_inventory = _get_multi_region_tags(base_account_number.group(), file_open_method)
+        #all_sorted_tagged_inventory[base_account_number.group()] = region_sorted_tagged_inventory
+
+        # Get additional multi accounts' tag values from all regions
+        for account_number in multi_accounts:
+            # Swap account number in Cognito user's assigned IAM role ARN
+            # Cognito user's assumed IAM role name must be identical in all AWS accounts  
+            account_role_arn = re.sub('\d{12}', account_number, cognito_user_group_arn)
+            kwargs = dict()
+            kwargs['account_role_arn'] = account_role_arn
+            kwargs['user_email'] = user_email
+            kwargs['user_id'] = claims.get('username')
+            kwargs['user_source'] = user_source
+            kwargs['session_credentials'] = session_credentials
+            multi_account_role_session = assume_role_multi_account(**kwargs)
+            session_credentials['multi_account_role_session'] = multi_account_role_session 
+            if session_credentials.get('multi_account_role_session'):
+                all_sorted_tag_values_inventory = _get_multi_region_tag_values(account_number, all_sorted_tag_values_inventory)
+
         
         #Remove duplicate tag values & sort
         all_sorted_tag_values_inventory = list(set(all_sorted_tag_values_inventory))
@@ -421,7 +456,6 @@ def edit_tag_group():
 
         # Execution status will be "success" if at least one AWS region contains the tag-filtered resources
         if 'success' in all_execution_status_alert_levels or 'warning' in all_execution_status_alert_levels:
-        # if execution_status.get('alert_level') == 'success':
             log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
             # First conditional checks if the user wants to edit an existing Tag Group
             if request.form.get('tag_group_name'):    
@@ -436,7 +470,7 @@ def edit_tag_group():
             # Second conditional checks if the user creates a brand new Tag Group
             elif request.form.get('new_tag_group_name') and re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')):
                 selected_tag_group_name = request.form.get('new_tag_group_name')
-                tag_group_key_values = {}
+                tag_group_key_values = dict()
                 return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=all_sorted_tag_values_inventory)
             # If user does not select an existing Tag Group or enter 
             # a new Tag Group name reload this route until valid user input given
@@ -444,7 +478,8 @@ def edit_tag_group():
                 return render_template('type-to-tag-group.html')
         else:
             log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-            flash(execution_status['status_message'], execution_status['alert_level'])
+            #flash(execution_status['status_message'], execution_status['alert_level'])
+            flash('An error occurred.  Please contact your Tag Tamer administrator for assistance.', 'danger')
             return render_template('blank.html')
     else:
         log.error("Unknown user attempted to invoke \"{}\" on {} from location: \"{}\" - FAILURE".format(sys._getframe().f_code.co_name, date_time_now(), user_source))
@@ -932,7 +967,7 @@ def set_roles_tags():
             chosen_tags = list()
             for key, value in form_contents.items():
                 if value:
-                    tag_kv = {}
+                    tag_kv = dict()
                     tag_kv["Key"] = key
                     tag_kv["Value"] = value
                     chosen_tags.append(tag_kv)

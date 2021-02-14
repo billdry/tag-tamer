@@ -23,7 +23,7 @@ class config:
     #Class constructor
     def __init__(self, region, **session_credentials):
         self.region = region
-        self.session_credentials = {}
+        self.session_credentials = dict()
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']

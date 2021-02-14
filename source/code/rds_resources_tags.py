@@ -48,18 +48,16 @@ class rds_resources_tags:
             self.filter_tags['conjunction'] = 'AND'
         resource_inventory = dict()
 
-        self.session_credentials = {}
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = dict()
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         def _intersection_union_invalid(tag_dict, resource_name, resource_arn):
@@ -269,17 +267,15 @@ class rds_resources_tags:
         tagged_resource_inventory = dict()
 
         self.session_credentials = dict()
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
@@ -333,17 +329,15 @@ class rds_resources_tags:
         tag_keys_inventory.append('<No tags applied>')
 
         self.session_credentials = dict()
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
@@ -387,17 +381,15 @@ class rds_resources_tags:
         tag_values_inventory = list()
 
         self.session_credentials = dict()
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
@@ -447,27 +439,27 @@ class rds_resources_tags:
         my_status = execution_status()
         resources_updated_tags = dict()
 
+        self.resources_to_tag = resources_to_tag
+        self.chosen_tags = chosen_tags
         self.session_credentials = dict()
-        self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
-        self.session_credentials['SecretKey'] = session_credentials['SecretKey']
-        self.session_credentials['SessionToken'] = session_credentials['SessionToken']
+        self.session_credentials = session_credentials
         
         if session_credentials.get('multi_account_role_session'):
             client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
         else:
             this_session = boto3.session.Session(
-                aws_access_key_id=self.session_credentials['AccessKeyId'],
-                aws_secret_access_key=self.session_credentials['SecretKey'],
-                aws_session_token=self.session_credentials['SessionToken'])
+                aws_access_key_id=self.session_credentials.get('AccessKeyId'),
+                aws_secret_access_key=self.session_credentials.get('SecretKey'),
+                aws_session_token=self.session_credentials.get('SessionToken'))
             client = this_session.client(self.resource_type, region_name=self.region)
 
-        for resource_arn in resources_to_tag:
+        for resource_arn in self.resources_to_tag:
             #try:
             #    client = this_session.client(self.resource_type, region_name=self.region)
             try:
                 response = client.add_tags_to_resource(
                     ResourceName=resource_arn,
-                    Tags=chosen_tags
+                    Tags=self.chosen_tags
                 )
                 my_status.success(message='RDS Cluster tags updated successfully!')
             except botocore.exceptions.ClientError as error:
