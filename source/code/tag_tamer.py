@@ -110,9 +110,14 @@ if not ssm_parameters:
     log.info("Terminating Tag Tamer application on {} because no AWS SSM Parameters are available.  Please check the tag_tamer_parameters.json file & the AWS SSM Parameter Store.".format(date_time_now()))
     sys.exit()
 
-# Get AWS accounts
-multi_accounts = ssm_parameters.get('multi-accounts').split(',')
-#print("The multi-account roles are: ", multi_account_roles)
+# Multi-account feature - get any additional AWS accounts to manage using Tag Tamer
+multi_accounts = list()
+if ssm_parameters.get('multi-accounts'):
+    raw_multi_accounts = list()
+    raw_multi_accounts = ssm_parameters.get('multi-accounts').split(',')
+    for account in raw_multi_accounts:
+        if re.search('\d{12}', account):
+            multi_accounts.append(account.strip(" "))
 
 # Instantiate flask API application
 app = Flask(__name__)
@@ -311,11 +316,12 @@ def found_tags():
                 kwargs['session_credentials'] = session_credentials
                 multi_account_role_session = assume_role_multi_account(**kwargs)
                 session_credentials['multi_account_role_session'] = multi_account_role_session 
-                file_open_method = "a"
-                region_sorted_tagged_inventory = dict()
-                # Get the multi account's tags from all regions
-                region_sorted_tagged_inventory = _get_multi_region_tags(account_number, file_open_method)
-                all_sorted_tagged_inventory[account_number] = region_sorted_tagged_inventory
+                if session_credentials.get('multi_account_role_session'):
+                    file_open_method = "a"
+                    region_sorted_tagged_inventory = dict()
+                    # Get the multi account's tags from all regions
+                    region_sorted_tagged_inventory = _get_multi_region_tags(account_number, file_open_method)
+                    all_sorted_tagged_inventory[account_number] = region_sorted_tagged_inventory
 
             # Execution status will be "success" if at least one AWS region contained the tag-filtered resources
             if 'success' in all_execution_status_alert_levels:

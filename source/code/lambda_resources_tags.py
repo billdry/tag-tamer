@@ -52,10 +52,15 @@ class lambda_resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         def _intersection_union_invalid(tag_dict, function_name, function_arn):
             resource_inventory['No matching resource'] = 'No matching resource'
@@ -123,7 +128,7 @@ class lambda_resources_tags:
             }
                 
             try:
-                client = this_session.client(self.resource_type, region_name=self.region)
+                #client = this_session.client(self.resource_type, region_name=self.region)
                 # Get all the Lambda functions in the region
                 my_functions = client.list_functions()
                 for item in my_functions['Functions']:
@@ -132,14 +137,14 @@ class lambda_resources_tags:
                         response = client.list_tags(
                             Resource=item['FunctionArn']
                         )
-                        if response.get('Tags'):
+                        if not response.get('Tags') and (self.filter_tags.get('tag_key1') == '<No tags applied>' or \
+                            self.filter_tags.get('tag_key2') == '<No tags applied>'):
+                            resource_inventory[item['FunctionArn']] = item['FunctionName']
+                        else:
                             intersection_combos[(tag_key1_state,
                                 tag_value1_state,
                                 tag_key2_state,
                                 tag_value2_state)](response.get('Tags'), item['FunctionName'], item['FunctionArn'])
-                        elif self.filter_tags.get('tag_key1') == '<No tags applied>' or \
-                            self.filter_tags.get('tag_key2') == '<No tags applied>':
-                            resource_inventory[item['FunctionArn']] = item['FunctionName']
 
                     except botocore.exceptions.ClientError as error:
                         log.error("Boto3 API returned error: {}".format(error))
@@ -216,7 +221,7 @@ class lambda_resources_tags:
             }
                 
             try:
-                client = this_session.client(self.resource_type, region_name=self.region)
+                #client = this_session.client(self.resource_type, region_name=self.region)
                 # Get all the Lambda functions in the region
                 my_functions = client.list_functions()
                 for item in my_functions['Functions']:
@@ -225,14 +230,14 @@ class lambda_resources_tags:
                         response = client.list_tags(
                             Resource=item['FunctionArn']
                         )
-                        if response.get('Tags'):
+                        if not response.get('Tags') and (self.filter_tags.get('tag_key1') == '<No tags applied>' or \
+                            self.filter_tags.get('tag_key2') == '<No tags applied>'):
+                            resource_inventory[item['FunctionArn']] = item['FunctionName']
+                        else:
                             or_combos[(tag_key1_state,
                                 tag_value1_state,
                                 tag_key2_state,
                                 tag_value2_state)](response.get('Tags'), item['FunctionName'], item['FunctionArn'])
-                        elif self.filter_tags.get('tag_key1') == '<No tags applied>' or \
-                            self.filter_tags.get('tag_key2') == '<No tags applied>':
-                            resource_inventory[item['FunctionArn']] = item['FunctionName']
 
                     except botocore.exceptions.ClientError as error:
                         log.error("Boto3 API returned error: {}".format(error))
@@ -267,14 +272,19 @@ class lambda_resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
             if chosen_resources:
-                client = this_session.client(self.resource_type, region_name=self.region)
+                #client = this_session.client(self.resource_type, region_name=self.region)
                 for resource_id_name in chosen_resources:
                     resource_tags = dict()
                     sorted_resource_tags = dict()
@@ -323,13 +333,18 @@ class lambda_resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
-            client = this_session.client(self.resource_type, region_name=self.region)
+            #client = this_session.client(self.resource_type, region_name=self.region)
             # Get all the Lambda functions in the region
             my_functions = client.list_functions()
             for item in my_functions['Functions']:
@@ -382,13 +397,18 @@ class lambda_resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
-            client = this_session.client(self.resource_type, region_name=self.region)
+            #client = this_session.client(self.resource_type, region_name=self.region)
             # Get all the Lambda functions in the region
             my_functions = client.list_functions()
             for item in my_functions['Functions']:
@@ -444,36 +464,41 @@ class lambda_resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         # for Lambda Boto3 API covert list of tags dicts to single key:value tag dict 
         for tag in chosen_tags:
             tag_dict[tag['Key']] = tag['Value']
        
         for resource_arn in resources_to_tag:
+            #try:
+            #    client = this_session.client(self.resource_type, region_name=self.region)
             try:
-                client = this_session.client(self.resource_type, region_name=self.region)
-                try:
-                    response = client.tag_resource(
-                        Resource=resource_arn,
-                        Tags=tag_dict
-                    )
-                    my_status.success(message='Lambda function tags updated successfully!')
-                except botocore.exceptions.ClientError as error:
-                    log.error("Boto3 API returned error: {}".format(error))
-                    resources_updated_tags["No Resources Found"] = "No Tags Applied"
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
-                        my_status.error(message='You are not authorized to modify these resources')
-                    else:
-                        my_status.error()
+                response = client.tag_resource(
+                    Resource=resource_arn,
+                    Tags=tag_dict
+                )
+                my_status.success(message='Lambda function tags updated successfully!')
             except botocore.exceptions.ClientError as error:
-                    log.error("Boto3 API returned error: {}".format(error))
-                    resources_updated_tags["No Resources Found"] = "No Tags Applied"
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
-                        my_status.error(message='You are not authorized to modify these resources')
-                    else:
-                        my_status.error()
+                log.error("Boto3 API returned error: {}".format(error))
+                resources_updated_tags["No Resources Found"] = "No Tags Applied"
+                if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
+                    my_status.error(message='You are not authorized to modify these resources')
+                else:
+                    my_status.error()
+            #except botocore.exceptions.ClientError as error:
+            #        log.error("Boto3 API returned error: {}".format(error))
+            #        resources_updated_tags["No Resources Found"] = "No Tags Applied"
+            #        if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
+            #            my_status.error(message='You are not authorized to modify these resources')
+            #        else:
+            #            my_status.error()
         return my_status.get_status()

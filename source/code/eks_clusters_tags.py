@@ -55,10 +55,15 @@ class eks_clusters_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         def _intersection_union_invalid(tag_dict, cluster_name, cluster_arn):
             resource_inventory['No matching resource'] = 'No matching resource'
@@ -126,7 +131,7 @@ class eks_clusters_tags:
             }
                 
             try:
-                client = this_session.client(self.resource_type, region_name=self.region)
+                #client = this_session.client(self.resource_type, region_name=self.region)
                 # Get all the EKS Clusters in the region
                 my_clusters = client.list_clusters()
                 for item in my_clusters['clusters']:
@@ -225,7 +230,7 @@ class eks_clusters_tags:
             }
                 
             try:
-                client = this_session.client(self.resource_type, region_name=self.region)
+                #client = this_session.client(self.resource_type, region_name=self.region)
                 # Get all the EKS Clusters in the region
                 my_clusters = client.list_clusters()
                 for item in my_clusters['clusters']:
@@ -278,14 +283,19 @@ class eks_clusters_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
             if chosen_resources:
-                client = this_session.client(self.resource_type, region_name=self.region)
+                #client = this_session.client(self.resource_type, region_name=self.region)
                 for resource_id_name in chosen_resources:
                     resource_tags = {}
                     eks_cluster_arn= client.describe_cluster(
@@ -334,13 +344,18 @@ class eks_clusters_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
-            client = this_session.client(self.resource_type, region_name=self.region)
+            #client = this_session.client(self.resource_type, region_name=self.region)
             # Get all the EKS clusters in the region
             my_clusters = client.list_clusters()
             if len(my_clusters['clusters']) == 0:
@@ -400,13 +415,18 @@ class eks_clusters_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
-            client = this_session.client(self.resource_type, region_name=self.region)
+            #client = this_session.client(self.resource_type, region_name=self.region)
             # Get all the EKS clusters in the region
             my_clusters = client.list_clusters()
             if len(my_clusters['clusters']) == 0:
@@ -432,7 +452,6 @@ class eks_clusters_tags:
                                         tag_values_inventory.append(tag_value)
                         except botocore.exceptions.ClientError as error:
                             log.error("Boto3 API returned error: {}".format(error))
-                            #tag_values_inventory.append("")
                             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
                                 my_status.error(message='You are not authorized to view these resources')
                             else:
@@ -454,7 +473,6 @@ class eks_clusters_tags:
 
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
-            #tag_values_inventory.append("")
             if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                    
                 my_status.error(message='You are not authorized to view these resources')
             else:
@@ -479,36 +497,41 @@ class eks_clusters_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         # for EKS Boto3 API covert list of tags dicts to single key:value tag dict 
         for tag in chosen_tags:
             tag_dict[tag['Key']] = tag['Value']
        
         for resource_arn in resources_to_tag:
+            #try:
+                #client = this_session.client(self.resource_type, region_name=self.region)
             try:
-                client = this_session.client(self.resource_type, region_name=self.region)
-                try:
-                    response = client.tag_resource(
-                        resourceArn=resource_arn,
-                        tags=tag_dict
-                    )
-                    my_status.success(message='EKS cluster tags updated successfully!')
-                except botocore.exceptions.ClientError as error:
-                    log.error("Boto3 API returned error: {}".format(error))
-                    resources_updated_tags["No Resources Found"] = "No Tags Applied"
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
-                        my_status.error(message='You are not authorized to modify these resources')
-                    else:
-                        my_status.error()
+                response = client.tag_resource(
+                    resourceArn=resource_arn,
+                    tags=tag_dict
+                )
+                my_status.success(message='EKS cluster tags updated successfully!')
             except botocore.exceptions.ClientError as error:
-                    log.error("Boto3 API returned error: {}".format(error))
-                    resources_updated_tags["No Resources Found"] = "No Tags Applied"
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
-                        my_status.error(message='You are not authorized to modify these resources')
-                    else:
-                        my_status.error()
+                log.error("Boto3 API returned error: {}".format(error))
+                resources_updated_tags["No Resources Found"] = "No Tags Applied"
+                if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
+                    my_status.error(message='You are not authorized to modify these resources')
+                else:
+                    my_status.error()
+            #except botocore.exceptions.ClientError as error:
+            #        log.error("Boto3 API returned error: {}".format(error))
+            #        resources_updated_tags["No Resources Found"] = "No Tags Applied"
+            #        if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
+            #            my_status.error(message='You are not authorized to modify these resources')
+            #        else:
+            #            my_status.error()
         return my_status.get_status()

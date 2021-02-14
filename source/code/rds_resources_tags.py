@@ -52,10 +52,15 @@ class rds_resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         def _intersection_union_invalid(tag_dict, resource_name, resource_arn):
             resource_inventory['No matching resource'] = 'No matching resource'
@@ -123,7 +128,7 @@ class rds_resources_tags:
             }
                 
             try:
-                client = this_session.client(self.resource_type, region_name=self.region)
+                #client = this_session.client(self.resource_type, region_name=self.region)
                 # Get all the resources in the region
                 my_resources = client.describe_db_clusters()
                 for item in my_resources['DBClusters']:
@@ -216,7 +221,7 @@ class rds_resources_tags:
             }
                 
             try:
-                client = this_session.client(self.resource_type, region_name=self.region)
+                #client = this_session.client(self.resource_type, region_name=self.region)
                 # Get all the resources in the region
                 my_resources = client.describe_db_clusters()
                 for item in my_resources['DBClusters']:
@@ -257,7 +262,7 @@ class rds_resources_tags:
 
     # method - get_rds_resources_tags
     # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
-    # No input arguments
+    # List of chosen resources from get_rds_names_ids() & session credentials are arguments
     def get_rds_resources_tags(self, chosen_resources, **session_credentials):
         my_status = execution_status()
         # Instantiate dictionaries to hold resources & their tags
@@ -267,14 +272,19 @@ class rds_resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
             if chosen_resources:
-                client = this_session.client(self.resource_type, region_name=self.region)
+                #client = this_session.client(self.resource_type, region_name=self.region)
                 for resource_id_name in chosen_resources:
                     resource_tags = dict()
                     sorted_resource_tags = dict()
@@ -315,7 +325,7 @@ class rds_resources_tags:
 
     # method - get_rds_tag_keys
     # Getter method retrieves every tag:key for object's resource type
-    # No input arguments
+    # session credentials as the only input arguments
     def get_rds_tag_keys(self, **session_credentials):
         my_status = execution_status()
         tag_keys_inventory = list()
@@ -326,13 +336,18 @@ class rds_resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
-            client = this_session.client(self.resource_type, region_name=self.region)
+            #client = this_session.client(self.resource_type, region_name=self.region)
             # Interate all the resources in the region
             my_resources = client.describe_db_clusters()
             if len(my_resources['DBClusters']) == 0:
@@ -366,7 +381,7 @@ class rds_resources_tags:
 
     # method - get_rds_tag_values
     # Getter method retrieves every tag:value for object's resource type
-    # No input arguments
+    # session credentials as the only input arguments
     def get_rds_tag_values(self, **session_credentials):
         my_status = execution_status()
         tag_values_inventory = list()
@@ -375,13 +390,18 @@ class rds_resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
-            client = this_session.client(self.resource_type, region_name=self.region)
+            #client = this_session.client(self.resource_type, region_name=self.region)
             # Interate all the resources in the region
             my_resources = client.describe_db_clusters()
             if len(my_resources['DBClusters']) == 0:
@@ -431,32 +451,37 @@ class rds_resources_tags:
         self.session_credentials['AccessKeyId'] = session_credentials['AccessKeyId']
         self.session_credentials['SecretKey'] = session_credentials['SecretKey']
         self.session_credentials['SessionToken'] = session_credentials['SessionToken']
-        this_session = boto3.session.Session(
-            aws_access_key_id=self.session_credentials['AccessKeyId'],
-            aws_secret_access_key=self.session_credentials['SecretKey'],
-            aws_session_token=self.session_credentials['SessionToken'])
+        
+        if session_credentials.get('multi_account_role_session'):
+            client = session_credentials['multi_account_role_session'].client(self.resource_type, region_name=self.region)
+        else:
+            this_session = boto3.session.Session(
+                aws_access_key_id=self.session_credentials['AccessKeyId'],
+                aws_secret_access_key=self.session_credentials['SecretKey'],
+                aws_session_token=self.session_credentials['SessionToken'])
+            client = this_session.client(self.resource_type, region_name=self.region)
 
         for resource_arn in resources_to_tag:
+            #try:
+            #    client = this_session.client(self.resource_type, region_name=self.region)
             try:
-                client = this_session.client(self.resource_type, region_name=self.region)
-                try:
-                    response = client.add_tags_to_resource(
-                        ResourceName=resource_arn,
-                        Tags=chosen_tags
-                    )
-                    my_status.success(message='RDS Cluster tags updated successfully!')
-                except botocore.exceptions.ClientError as error:
-                    log.error("Boto3 API returned error: {}".format(error))
-                    resources_updated_tags["No Resources Found"] = "No Tags Applied"
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
-                        my_status.error(message='You are not authorized to modify these resources')
-                    else:
-                        my_status.error()
+                response = client.add_tags_to_resource(
+                    ResourceName=resource_arn,
+                    Tags=chosen_tags
+                )
+                my_status.success(message='RDS Cluster tags updated successfully!')
             except botocore.exceptions.ClientError as error:
-                    log.error("Boto3 API returned error: {}".format(error))
-                    resources_updated_tags["No Resources Found"] = "No Tags Applied"
-                    if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
-                        my_status.error(message='You are not authorized to modify these resources')
-                    else:
-                        my_status.error()
+                log.error("Boto3 API returned error: {}".format(error))
+                resources_updated_tags["No Resources Found"] = "No Tags Applied"
+                if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
+                    my_status.error(message='You are not authorized to modify these resources')
+                else:
+                    my_status.error()
+            #except botocore.exceptions.ClientError as error:
+            #        log.error("Boto3 API returned error: {}".format(error))
+            #        resources_updated_tags["No Resources Found"] = "No Tags Applied"
+            #        if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
+            #            my_status.error(message='You are not authorized to modify these resources')
+            #        else:
+            #            my_status.error()
         return my_status.get_status()
