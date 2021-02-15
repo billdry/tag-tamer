@@ -354,10 +354,11 @@ class rds_resources_tags:
                         for tag in item['TagList']:       
                                 if not re.search("^aws:", tag['Key']):
                                     tag_keys_inventory.append(tag['Key'])
-                        my_status.success(message='Resources and tags found!')
-                    else:
-                        tag_keys_inventory.append("No tag keys found")
-                        my_status.warning(message='No resource tags found.')
+            # Set success if tag keys found else set warning
+            if len(tag_keys_inventory):
+                my_status.success(message='Tag keys found!')
+            else:
+                my_status.warning(message='No tag keys found for this resource type.')		
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))
             tag_keys_inventory.append("No tag keys found")
@@ -406,10 +407,6 @@ class rds_resources_tags:
                         for tag in item['TagList']:       
                                 if not re.search("^aws:", tag['Values']):
                                     tag_values_inventory.append(tag['Values'])
-                    #    my_status.success(message='Tag values found!')
-                    #else:
-                    #    tag_values_inventory.append("No tag values found")
-                    #    my_status.warning(message='No resource tags found.')
             # Set success if tag values found else set warning
             if len(tag_values_inventory):
                 my_status.success(message='Tag values found!')

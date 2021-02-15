@@ -348,15 +348,11 @@ class lambda_resources_tags:
                     response = client.list_tags(
                         Resource=function_arn
                     )
-                    try:
+                    if len(response.get('Tags')):
                         # Add all tag keys to the list
                         for tag_key, _ in response['Tags'].items():       
                             if not re.search("^aws:", tag_key):
                                 tag_keys_inventory.append(tag_key)
-                        my_status.success(message='Resources and tags found!')
-                    except:
-                        tag_keys_inventory.append("No tag keys found")
-                        my_status.error(message='You are not authorized to view these resources')
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error: {}".format(error))
                     tag_keys_inventory.append("No tag keys found")
@@ -364,6 +360,11 @@ class lambda_resources_tags:
                         my_status.error(message='You are not authorized to view these resources')
                     else:
                         my_status.error()
+            # Set success if tag values found else set warning
+            if len(tag_keys_inventory):
+                my_status.success(message='Tag keys found!')
+            else:
+                my_status.warning(message='No tag keys found for this resource type.')
 
         except botocore.exceptions.ClientError as error:
             log.error("Boto3 API returned error: {}".format(error))

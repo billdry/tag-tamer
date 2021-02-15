@@ -624,19 +624,19 @@ class resources_tags:
                     selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
                 else:
                     selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                item_count = False
                 for item in selected_resource_type.instances.all():
-                    try:
-                        for tag in item.tags:
-                            if not re.search("^aws:", tag["Key"]):
-                                sorted_tag_keys_inventory.append(tag["Key"])
-                        my_status.success(message='Resources and tags found!')
-                    except:
-                        #sorted_tag_keys_inventory.append("No tag keys found")
-                        sorted_tag_keys_inventory.append("")
+                    for tag in item.tags:
+                        if not re.search("^aws:", tag["Key"]):
+                            sorted_tag_keys_inventory.append(tag["Key"])
+                            item_count = True
+                            my_status.success(message='Tag keys found!')
+                if not item_count:
+                    sorted_tag_keys_inventory.append("No tags keys found!")
+                    my_status.warning(message='No tag keys found!')
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
-                #sorted_tag_keys_inventory.append("No tag keys found")
                 sorted_tag_keys_inventory.append("")
                 if error.response['Error']['Code'] == 'AccessDeniedException' or \
                     error.response['Error']['Code'] == 'UnauthorizedOperation' or \
@@ -650,14 +650,18 @@ class resources_tags:
                     selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
                 else:
                     selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                
+                item_count = False
                 for item in selected_resource_type.volumes.all():
-                    try:
-                        for tag in item.tags:
-                            if not re.search("^aws:", tag["Key"]):
-                                sorted_tag_keys_inventory.append(tag["Key"])
-                        my_status.success(message='Resources and tags found!')
-                    except:
-                        sorted_tag_keys_inventory.append("No Tags Found")
+                    for tag in item.tags:
+                        if not re.search("^aws:", tag["Key"]):
+                            sorted_tag_keys_inventory.append(tag["Key"])
+                            item_count = True
+                            my_status.success(message='Tag keys found!')
+                if not item_count:
+                    sorted_tag_keys_inventory.append("No tags keys found!")
+                    my_status.warning(message='No tag keys found!')
+                
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))
@@ -674,14 +678,18 @@ class resources_tags:
                     selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
                 else:
                     selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                
+                item_count = False
                 for item in selected_resource_type.buckets.all():
-                    try:
-                        for tag in selected_resource_type.BucketTagging(item.name).tag_set:
-                            if not re.search("^aws:", tag["Key"]):
-                                sorted_tag_keys_inventory.append(tag["Key"])
-                    except:
-                        sorted_tag_keys_inventory.append("No Tags Found")
-                my_status.success(message='Resources and tags found!')
+                    for tag in selected_resource_type.BucketTagging(item.name).tag_set:
+                        if not re.search("^aws:", tag["Key"]):
+                            sorted_tag_keys_inventory.append(tag["Key"])
+                            item_count = True
+                            my_status.success(message='Tag keys found!')
+                if not item_count:
+                    sorted_tag_keys_inventory.append("No tags keys found!")
+                    my_status.warning(message='No tag keys found!')
+                
             except botocore.exceptions.ClientError as error:
                 errorString = "Boto3 API returned error. function: {} - {}"
                 log.error(errorString.format(self.unit, error))

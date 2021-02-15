@@ -270,7 +270,6 @@ def found_tags():
             
             all_execution_status_alert_levels = list()
             all_sorted_tagged_inventory = dict()
-            #region_execution_status_alert_levels = list()
             claims = aws_auth.claims
 
             # Multi-region resource tag getter
@@ -281,14 +280,14 @@ def found_tags():
                     chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
                     session_credentials["region"] = region
                     session_credentials["chosen_resources"] = chosen_resources
-                    sorted_tagged_inventory, execution_status = inventory.get_resources_tags(**session_credentials)
+                    sorted_tagged_inventory, sorted_tagged_inventory_execution_status = inventory.get_resources_tags(**session_credentials)
                     region_sorted_tagged_inventory[region] = sorted_tagged_inventory
                     inventory.download_csv(file_open_method, account_number, region, sorted_tagged_inventory, claims.get('username'))
                     # Set file_use_method to append "a" for remaining validated regions
                     file_open_method = "a"
-                    all_execution_status_alert_levels.append(execution_status.get('alert_level'))
-                    region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(execution_status.get('status_message'))
-                    flash(region_execution_status_message, execution_status.get('alert_level'))
+                    all_execution_status_alert_levels.append(sorted_tagged_inventory_execution_status.get('alert_level'))
+                    region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(sorted_tagged_inventory_execution_status.get('status_message'))
+                    flash(region_execution_status_message, sorted_tagged_inventory_execution_status.get('alert_level'))
                 return region_sorted_tagged_inventory
 
             # Get the user's assigned Cognito user pool group's IAM role ARN
@@ -381,9 +380,9 @@ def get_tag_group_names():
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     if user_email and session_credentials.get('AccessKeyId'):
         all_tag_groups = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
-        tag_group_names, execution_status = all_tag_groups.get_tag_group_names()
-        flash(execution_status['status_message'], execution_status['alert_level'])
-        if execution_status.get('alert_level') == 'success':
+        tag_group_names, tag_group_names_execution_status = all_tag_groups.get_tag_group_names()
+        flash(tag_group_names_execution_status['status_message'], tag_group_names_execution_status['alert_level'])
+        if tag_group_names_execution_status.get('alert_level') == 'success':
             log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
             resource_type, _ = get_resource_type_unit(request.form.get('resource_type'))
             return render_template('display-tag-groups.html',
@@ -413,11 +412,11 @@ def edit_tag_group():
         def _get_multi_region_tag_values(account_number, all_sorted_tag_values_inventory):
             for region in validated_regions:
                 inventory = resources_tags(resource_type, unit, region)
-                sorted_tag_values_inventory, execution_status = inventory.get_tag_values(**session_credentials) 
+                sorted_tag_values_inventory, sorted_tag_values_inventory_execution_status = inventory.get_tag_values(**session_credentials) 
                 all_sorted_tag_values_inventory = all_sorted_tag_values_inventory + sorted_tag_values_inventory
-                all_execution_status_alert_levels.append(execution_status.get('alert_level'))
-                region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(execution_status.get('status_message'))
-                flash(region_execution_status_message, execution_status.get('alert_level'))
+                all_execution_status_alert_levels.append(sorted_tag_values_inventory_execution_status.get('alert_level'))
+                region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(sorted_tag_values_inventory_execution_status.get('status_message'))
+                flash(region_execution_status_message, sorted_tag_values_inventory_execution_status.get('alert_level'))
             return all_sorted_tag_values_inventory
         
         # Get the user's assigned Cognito user pool group's IAM role ARN
@@ -425,13 +424,9 @@ def edit_tag_group():
             ssm_parameters.get('cognito-user-pool-id-value'),
             ssm_parameters.get('cognito-default-region-value'))
 
+        # Get Tag Tamer base account's tag values from all regions
         base_account_number = re.search('\d{12}', cognito_user_group_arn)
         all_sorted_tag_values_inventory = _get_multi_region_tag_values(base_account_number.group(), all_sorted_tag_values_inventory)
-            #file_open_method = "w"
-            #region_sorted_tagged_inventory = dict()
-        # Get base account's tags from all regions
-        #region_sorted_tagged_inventory = _get_multi_region_tags(base_account_number.group(), file_open_method)
-        #all_sorted_tagged_inventory[base_account_number.group()] = region_sorted_tagged_inventory
 
         # Get additional multi accounts' tag values from all regions
         for account_number in multi_accounts:
@@ -448,7 +443,6 @@ def edit_tag_group():
             session_credentials['multi_account_role_session'] = multi_account_role_session 
             if session_credentials.get('multi_account_role_session'):
                 all_sorted_tag_values_inventory = _get_multi_region_tag_values(account_number, all_sorted_tag_values_inventory)
-
         
         #Remove duplicate tag values & sort
         all_sorted_tag_values_inventory = list(set(all_sorted_tag_values_inventory))
@@ -461,11 +455,11 @@ def edit_tag_group():
             if request.form.get('tag_group_name'):    
                 selected_tag_group_name = request.form.get('tag_group_name')
                 tag_group = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
-                tag_group_key_values, execution_status = tag_group.get_tag_group_key_values(selected_tag_group_name)
-                if execution_status.get('alert_level') == 'success':
+                tag_group_key_values, tag_group_key_values_execution_status = tag_group.get_tag_group_key_values(selected_tag_group_name)
+                if tag_group_key_values_execution_status.get('alert_level') == 'success':
                     return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=all_sorted_tag_values_inventory)
                 else:
-                    flash(execution_status['status_message'], execution_status['alert_level'])
+                    flash(tag_group_key_values_execution_status['status_message'], tag_group_key_values_execution_status['alert_level'])
                     return render_template('blank.html')
             # Second conditional checks if the user creates a brand new Tag Group
             elif request.form.get('new_tag_group_name') and re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')):
@@ -478,7 +472,6 @@ def edit_tag_group():
                 return render_template('type-to-tag-group.html')
         else:
             log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-            #flash(execution_status['status_message'], execution_status['alert_level'])
             flash('An error occurred.  Please contact your Tag Tamer administrator for assistance.', 'danger')
             return render_template('blank.html')
     else:
@@ -526,25 +519,54 @@ def add_update_tag_group():
 
         tag_group = set_tag_group(tag_tamer_parameters.get('base_region'), **session_credentials)
         if tag_group_action == "create":
-            execution_status = tag_group.create_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
+            tag_group_execution_status = tag_group.create_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
         else:
-            execution_status = tag_group.update_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
-        if execution_status.get('alert_level') == 'success':
+            tag_group_execution_status = tag_group.update_tag_group(tag_group_name, tag_group_key_name, tag_group_value_options)
+        if tag_group_execution_status.get('alert_level') == 'success':
             tag_groups = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
-            tag_group_key_values, execution_status = tag_groups.get_tag_group_key_values(tag_group_name)
-            if execution_status.get('alert_level') == 'success':
+            tag_group_key_values, tag_group_key_values_execution_status = tag_groups.get_tag_group_key_values(tag_group_name)
+            if tag_group_key_values_execution_status.get('alert_level') == 'success':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
-                
                 all_execution_status_alert_levels = list()
                 all_sorted_tag_values_inventory = list()
-                for region in validated_regions:
-                    inventory = resources_tags(resource_type, unit, region)
-                    sorted_tag_values_inventory, execution_status = inventory.get_tag_values(**session_credentials) 
-                    all_sorted_tag_values_inventory = all_sorted_tag_values_inventory + sorted_tag_values_inventory
-                    all_execution_status_alert_levels.append(execution_status.get('alert_level'))
-                    region_execution_status_message = str(region) + " - " + str(execution_status.get('status_message'))
-                    flash(region_execution_status_message, execution_status.get('alert_level'))
+                claims = aws_auth.claims
+
+                # Multi-region resource tag values getter
+                def _get_multi_region_tag_values(account_number, all_sorted_tag_values_inventory):
+                    for region in validated_regions:
+                        inventory = resources_tags(resource_type, unit, region)
+                        sorted_tag_values_inventory, sorted_tag_values_inventory_execution_status = inventory.get_tag_values(**session_credentials) 
+                        all_sorted_tag_values_inventory = all_sorted_tag_values_inventory + sorted_tag_values_inventory
+                        all_execution_status_alert_levels.append(sorted_tag_values_inventory_execution_status.get('alert_level'))
+                        region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(sorted_tag_values_inventory_execution_status.get('status_message'))
+                        flash(region_execution_status_message, sorted_tag_values_inventory_execution_status.get('alert_level'))
+                    return all_sorted_tag_values_inventory
+                
+                # Get the user's assigned Cognito user pool group's IAM role ARN
+                cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
+                    ssm_parameters.get('cognito-user-pool-id-value'),
+                    ssm_parameters.get('cognito-default-region-value'))
+
+                # Get Tag Tamer base account's tag values from all regions
+                base_account_number = re.search('\d{12}', cognito_user_group_arn)
+                all_sorted_tag_values_inventory = _get_multi_region_tag_values(base_account_number.group(), all_sorted_tag_values_inventory)
+
+                # Get additional multi accounts' tag values from all regions
+                for account_number in multi_accounts:
+                    # Swap account number in Cognito user's assigned IAM role ARN
+                    # Cognito user's assumed IAM role name must be identical in all AWS accounts  
+                    account_role_arn = re.sub('\d{12}', account_number, cognito_user_group_arn)
+                    kwargs = dict()
+                    kwargs['account_role_arn'] = account_role_arn
+                    kwargs['user_email'] = user_email
+                    kwargs['user_id'] = claims.get('username')
+                    kwargs['user_source'] = user_source
+                    kwargs['session_credentials'] = session_credentials
+                    multi_account_role_session = assume_role_multi_account(**kwargs)
+                    session_credentials['multi_account_role_session'] = multi_account_role_session 
+                    if session_credentials.get('multi_account_role_session'):
+                        all_sorted_tag_values_inventory = _get_multi_region_tag_values(account_number, all_sorted_tag_values_inventory)
                 
                 #Remove duplicate tag values & sort
                 all_sorted_tag_values_inventory = list(set(all_sorted_tag_values_inventory))
@@ -553,11 +575,11 @@ def add_update_tag_group():
                 return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=all_sorted_tag_values_inventory)
             else:
                 log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-                flash(execution_status['status_message'], execution_status['alert_level'])
+                flash(tag_group_key_values_execution_status['status_message'], tag_group_key_values_execution_status['alert_level'])
                 return render_template('blank.html')
         else:
             log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-            flash(execution_status['status_message'], execution_status['alert_level'])
+            flash(tag_group_execution_status.get('status_message'), tag_group_execution_status.get('alert_level'))
             return render_template('blank.html')
 
 # Delivers HTML UI to select AWS resource type to tag using Tag Groups
@@ -604,14 +626,45 @@ def tag_based_search():
             all_execution_status_alert_levels = list()
             all_selected_tag_keys = list()
             all_selected_tag_values = list()
-            for region in validated_regions:
-                inventory = resources_tags(resource_type, unit, region)
-                selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**session_credentials)
-                all_selected_tag_keys = all_selected_tag_keys + selected_tag_keys
-                all_execution_status_alert_levels.append(execution_status_tag_keys.get('alert_level'))
-                selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**session_credentials)
-                all_selected_tag_values = all_selected_tag_values + selected_tag_values
-                all_execution_status_alert_levels.append(execution_status_tag_values.get('alert_level'))
+            claims = aws_auth.claims
+
+            # Multi-region resource tag keys & values getter
+            def _get_multi_region_tag_keys_values(account_number, all_selected_tag_keys, all_selected_tag_values):
+                for region in validated_regions:
+                    inventory = resources_tags(resource_type, unit, region)
+                    selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**session_credentials)
+                    all_selected_tag_keys = all_selected_tag_keys + selected_tag_keys
+                    all_execution_status_alert_levels.append(execution_status_tag_keys.get('alert_level'))
+                    selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**session_credentials)
+                    all_selected_tag_values = all_selected_tag_values + selected_tag_values
+                    all_execution_status_alert_levels.append(execution_status_tag_values.get('alert_level'))
+                return all_selected_tag_keys, all_selected_tag_values
+            
+            # Get the user's assigned Cognito user pool group's IAM role ARN
+            cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
+                ssm_parameters.get('cognito-user-pool-id-value'),
+                ssm_parameters.get('cognito-default-region-value'))
+
+            # Get Tag Tamer base account's tag values from all regions
+            base_account_number = re.search('\d{12}', cognito_user_group_arn)
+            all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(base_account_number.group(), all_selected_tag_keys, all_selected_tag_values)
+
+            # Get additional multi accounts' tag values from all regions
+            for account_number in multi_accounts:
+                # Swap account number in Cognito user's assigned IAM role ARN
+                # Cognito user's assumed IAM role name must be identical in all AWS accounts  
+                account_role_arn = re.sub('\d{12}', account_number, cognito_user_group_arn)
+                kwargs = dict()
+                kwargs['account_role_arn'] = account_role_arn
+                kwargs['user_email'] = user_email
+                kwargs['user_id'] = claims.get('username')
+                kwargs['user_source'] = user_source
+                kwargs['session_credentials'] = session_credentials
+                multi_account_role_session = assume_role_multi_account(**kwargs)
+                session_credentials['multi_account_role_session'] = multi_account_role_session 
+                if session_credentials.get('multi_account_role_session'):
+                    all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(account_number, all_selected_tag_keys, all_selected_tag_values)
+            
             
             #Remove duplicate tag values & sort
             all_selected_tag_keys = list(set(all_selected_tag_keys))
@@ -628,11 +681,11 @@ def tag_based_search():
                         tag_values=all_selected_tag_values)
             elif 'warning' in all_execution_status_alert_levels:
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-                flash(execution_status_tag_keys['status_message'], execution_status_tag_keys['alert_level'])
+                flash('No tag keys or values found!', 'warning')
                 return render_template('blank.html')
             else:
                 log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-                flash(execution_status_tag_keys['status_message'], execution_status_tag_keys['alert_level'])
+                flash('An error occurred.  Please contact your Tag Tamer administrator for assistance.', 'danger')
                 return render_template('blank.html')
         else:
             log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
@@ -665,14 +718,49 @@ def tag_resources():
             resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
             all_execution_status_alert_levels = list()
             all_chosen_resources = dict()
-            for region in validated_regions:
-                chosen_resource_inventory = resources_tags(resource_type, unit, region)
-                chosen_resources = OrderedDict()
-                chosen_resources, resources_execution_status = chosen_resource_inventory.get_resources(filter_elements, **session_credentials)
-                # Only include AWS regions with filtered resources 
-                if len(chosen_resources):
-                    all_chosen_resources[region] = chosen_resources
-                all_execution_status_alert_levels.append(resources_execution_status.get('alert_level'))
+            claims = aws_auth.claims
+
+            # Multi-region resource tag getter
+            def _get_multi_region_tags(account_number):
+                account_chosen_resources = dict()
+                for region in validated_regions:
+                    inventory = resources_tags(resource_type, unit, region)
+                    chosen_resources = OrderedDict()
+                    chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
+                    # Only include AWS regions with filtered resources 
+                    if len(chosen_resources):
+                        account_chosen_resources[region] = chosen_resources
+                    all_execution_status_alert_levels.append(resources_execution_status.get('alert_level'))
+                    region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(resources_execution_status.get('status_message'))
+                    flash(region_execution_status_message, resources_execution_status.get('alert_level'))
+                return account_chosen_resources
+                    
+            # Get the user's assigned Cognito user pool group's IAM role ARN
+            cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
+                ssm_parameters.get('cognito-user-pool-id-value'),
+                ssm_parameters.get('cognito-default-region-value'))
+
+            base_account_number = re.search('\d{12}', cognito_user_group_arn)
+            #region_sorted_tagged_inventory = dict()
+            # Get base account's tags from all regions
+            #region_sorted_tagged_inventory = _get_multi_region_tags(base_account_number.group(), file_open_method)
+            all_chosen_resources[base_account_number.group()] = _get_multi_region_tags(base_account_number.group())
+            
+            # Get additional multi accounts' tags from all regions
+            for account_number in multi_accounts:
+                # Swap account number in Cognito user's assigned IAM role ARN
+                # Cognito user's assumed IAM role name must be identical in all AWS accounts  
+                account_role_arn = re.sub('\d{12}', account_number, cognito_user_group_arn)
+                kwargs = dict()
+                kwargs['account_role_arn'] = account_role_arn
+                kwargs['user_email'] = user_email
+                kwargs['user_id'] = claims.get('username')
+                kwargs['user_source'] = user_source
+                kwargs['session_credentials'] = session_credentials
+                multi_account_role_session = assume_role_multi_account(**kwargs)
+                session_credentials['multi_account_role_session'] = multi_account_role_session 
+                if session_credentials.get('multi_account_role_session'):
+                    all_chosen_resources[account_number] = _get_multi_region_tags(account_number)
             
             tag_group_inventory = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
             tag_groups_all_info, tag_groups_execution_status = tag_group_inventory.get_all_tag_groups_key_values(tag_tamer_parameters.get('base_region'), **session_credentials)
@@ -724,12 +812,12 @@ def apply_tags_to_resources():
         all_execution_status_alert_levels = list()
         for region, resources_to_tag in all_resources_to_tag.items():
             chosen_resources_to_tag = resources_tags(resource_type, unit, region)     
-            execution_status = chosen_resources_to_tag.set_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
-            all_execution_status_alert_levels.append(execution_status.get('alert_level'))
-            region_execution_status_message = str(region) + " - " + str(execution_status.get('status_message'))
-            flash(region_execution_status_message, execution_status.get('alert_level'))
+            set_resources_tags_execution_status = chosen_resources_to_tag.set_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
+            all_execution_status_alert_levels.append(set_resources_tags_execution_status.get('alert_level'))
+            region_execution_status_message = str(region) + " - " + str(set_resources_tags_execution_status.get('status_message'))
+            flash(region_execution_status_message, set_resources_tags_execution_status.get('alert_level'))
             
-            if execution_status.get('alert_level') == 'success':
+            if set_resources_tags_execution_status.get('alert_level') == 'success':
                 updated_sorted_tagged_inventory = dict()
                 filter_tags = dict()
                 # Call get_resources with empty filter tag dictionary to return all resource ID's & names
@@ -973,9 +1061,9 @@ def set_roles_tags():
                     chosen_tags.append(tag_kv)
 
             role_to_tag = roles(tag_tamer_parameters.get('base_region'), **session_credentials)
-            execution_status = role_to_tag.set_role_tags(role_name, chosen_tags)
-            flash(execution_status['status_message'], execution_status['alert_level'])
-            if execution_status.get('alert_level') == 'success':
+            set_role_tags_execution_status = role_to_tag.set_role_tags(role_name, chosen_tags)
+            flash(set_role_tags_execution_status['status_message'], set_role_tags_execution_status['alert_level'])
+            if set_role_tags_execution_status.get('alert_level') == 'success':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 return redirect(url_for('select_roles_tags'))
             # for the case of Boto3 errors & unauthorized users
