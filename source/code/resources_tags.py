@@ -955,7 +955,6 @@ class resources_tags:
                 resource_tag_list = list()
                 current_applied_tags = dict()
                 try:
-                    #client = this_session.client(self.resource_type, region_name=self.region)
                     current_applied_tags = client.get_bucket_tagging(
                         Bucket=resource_id
                     )
