@@ -816,11 +816,14 @@ def apply_tags_to_resources():
     user_email, user_source = get_user_email_ip(request)
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     if user_email and session_credentials.get('AccessKeyId'):
-        chosen_tags = list()
+        all_execution_status_alert_levels = list()
         all_resources_to_tag = dict()
+        all_updated_sorted_tagged_inventory = dict()
+        chosen_tags = list()
+        filter_elements = dict()
+        claims = aws_auth.claims
         resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
         form_contents = request.form.to_dict()
-        filter_elements = dict()
         if request.form.get('tag_key1'):
             filter_elements['tag_key1'] = request.form.get('tag_key1')
             form_contents.pop('tag_key1')
@@ -864,10 +867,6 @@ def apply_tags_to_resources():
         cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
             ssm_parameters.get('cognito-user-pool-id-value'),
             ssm_parameters.get('cognito-default-region-value'))
-
-        claims = aws_auth.claims
-        all_updated_sorted_tagged_inventory = dict()
-        all_execution_status_alert_levels = list()
 
         # Assign user-selected Tag Groups to user-selected resources in accounts & regions
         for account_number, region_resources_to_tag in all_resources_to_tag.items():
