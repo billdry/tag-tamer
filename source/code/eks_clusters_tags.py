@@ -287,8 +287,7 @@ class eks_clusters_tags:
             client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
-            if chosen_resources:
-                #client = this_session.client(self.resource_type, region_name=self.region)
+            if chosen_resources[0][0] != "No matching resources found":
                 for resource_id_name in chosen_resources:
                     resource_tags = dict()
                     eks_cluster_arn= client.describe_cluster(
@@ -298,15 +297,19 @@ class eks_clusters_tags:
                         response = client.list_tags_for_resource(
                             resourceArn= eks_cluster_arn
                             )
-                        try:
+                        if response.get('tags'):
+                            user_applied_tags = False
                             for tag_key, tag_value in response['tags'].items():
                                 if not re.search("^aws:", tag_key):
                                     resource_tags[tag_key]= tag_value
-                        except:
-                            resource_tags[tag_key] = "No tag values found"
+                                    user_applied_tags = True
+                            if not user_applied_tags:
+                                resource_tags['No user-applied tag keys found'] = 'No user-applied tag values found'
+                        else:
+                            resource_tags["No user-applied tag keys found"] = "No user-applied tag values found"
                     except botocore.exceptions.ClientError as error:
                         log.error("Boto3 API returned error: {}".format(error))
-                        resource_tags["No Tags Found"] = "No Tags Found"
+                        resource_tags["No tags found"] = "No tags found"
                         if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':
                             my_status.error(message='You are not authorized to view these resources')
                         else:
