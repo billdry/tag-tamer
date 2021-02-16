@@ -271,10 +271,11 @@ def found_tags():
             all_execution_status_alert_levels = list()
             all_sorted_tagged_inventory = dict()
             claims = aws_auth.claims
+            my_regions = list()
 
             # Multi-region resource tag getter
-            def _get_multi_region_tags(account_number, file_open_method):
-                for region in validated_regions:
+            def _get_multi_region_tags(my_regions, account_number, file_open_method):
+                for region in my_regions:
                     inventory = resources_tags(resource_type, unit, region)
                     chosen_resources = OrderedDict()
                     chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
@@ -294,12 +295,17 @@ def found_tags():
             cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
                 ssm_parameters.get('cognito-user-pool-id-value'),
                 ssm_parameters.get('cognito-default-region-value'))
+            
+            if resource_type == "s3":
+                my_regions.append(tag_tamer_parameters.get('base_region'))
+            else:
+                my_regions = validated_regions
 
             base_account_number = re.search('\d{12}', cognito_user_group_arn)
             file_open_method = "w"
             region_sorted_tagged_inventory = dict()
             # Get base account's tags from all regions
-            region_sorted_tagged_inventory = _get_multi_region_tags(base_account_number.group(), file_open_method)
+            region_sorted_tagged_inventory = _get_multi_region_tags(my_regions, base_account_number.group(), file_open_method)
             all_sorted_tagged_inventory[base_account_number.group()] = region_sorted_tagged_inventory
             
             # Get additional multi accounts' tags from all regions
@@ -319,7 +325,7 @@ def found_tags():
                     file_open_method = "a"
                     region_sorted_tagged_inventory = dict()
                     # Get the multi account's tags from all regions
-                    region_sorted_tagged_inventory = _get_multi_region_tags(account_number, file_open_method)
+                    region_sorted_tagged_inventory = _get_multi_region_tags(my_regions, account_number, file_open_method)
                     all_sorted_tagged_inventory[account_number] = region_sorted_tagged_inventory
 
             # Execution status will be "success" if at least one AWS region contained the tag-filtered resources
@@ -407,10 +413,11 @@ def edit_tag_group():
         all_execution_status_alert_levels = list()
         all_sorted_tag_values_inventory = list()
         claims = aws_auth.claims
+        my_regions = list()
 
         # Multi-region resource tag values getter
-        def _get_multi_region_tag_values(account_number, all_sorted_tag_values_inventory):
-            for region in validated_regions:
+        def _get_multi_region_tag_values(my_regions, account_number, all_sorted_tag_values_inventory):
+            for region in my_regions:
                 inventory = resources_tags(resource_type, unit, region)
                 sorted_tag_values_inventory, sorted_tag_values_inventory_execution_status = inventory.get_tag_values(**session_credentials) 
                 all_sorted_tag_values_inventory = all_sorted_tag_values_inventory + sorted_tag_values_inventory
@@ -423,10 +430,15 @@ def edit_tag_group():
         cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
             ssm_parameters.get('cognito-user-pool-id-value'),
             ssm_parameters.get('cognito-default-region-value'))
+        
+        if resource_type == "s3":
+            my_regions.append(tag_tamer_parameters.get('base_region'))
+        else:
+            my_regions = validated_regions
 
         # Get Tag Tamer base account's tag values from all regions
         base_account_number = re.search('\d{12}', cognito_user_group_arn)
-        all_sorted_tag_values_inventory = _get_multi_region_tag_values(base_account_number.group(), all_sorted_tag_values_inventory)
+        all_sorted_tag_values_inventory = _get_multi_region_tag_values(my_regions, base_account_number.group(), all_sorted_tag_values_inventory)
 
         # Get additional multi accounts' tag values from all regions
         for account_number in multi_accounts:
@@ -442,7 +454,7 @@ def edit_tag_group():
             multi_account_role_session = assume_role_multi_account(**kwargs)
             session_credentials['multi_account_role_session'] = multi_account_role_session 
             if session_credentials.get('multi_account_role_session'):
-                all_sorted_tag_values_inventory = _get_multi_region_tag_values(account_number, all_sorted_tag_values_inventory)
+                all_sorted_tag_values_inventory = _get_multi_region_tag_values(my_regions, account_number, all_sorted_tag_values_inventory)
         
         #Remove duplicate tag values & sort
         all_sorted_tag_values_inventory = list(set(all_sorted_tag_values_inventory))
@@ -531,10 +543,11 @@ def add_update_tag_group():
                 all_execution_status_alert_levels = list()
                 all_sorted_tag_values_inventory = list()
                 claims = aws_auth.claims
+                my_regions = list()
 
                 # Multi-region resource tag values getter
-                def _get_multi_region_tag_values(account_number, all_sorted_tag_values_inventory):
-                    for region in validated_regions:
+                def _get_multi_region_tag_values(my_regions, account_number, all_sorted_tag_values_inventory):
+                    for region in my_regions:
                         inventory = resources_tags(resource_type, unit, region)
                         sorted_tag_values_inventory, sorted_tag_values_inventory_execution_status = inventory.get_tag_values(**session_credentials) 
                         all_sorted_tag_values_inventory = all_sorted_tag_values_inventory + sorted_tag_values_inventory
@@ -547,10 +560,15 @@ def add_update_tag_group():
                 cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
                     ssm_parameters.get('cognito-user-pool-id-value'),
                     ssm_parameters.get('cognito-default-region-value'))
+                
+                if resource_type == "s3":
+                    my_regions.append(tag_tamer_parameters.get('base_region'))
+                else:
+                    my_regions = validated_regions
 
                 # Get Tag Tamer base account's tag values from all regions
                 base_account_number = re.search('\d{12}', cognito_user_group_arn)
-                all_sorted_tag_values_inventory = _get_multi_region_tag_values(base_account_number.group(), all_sorted_tag_values_inventory)
+                all_sorted_tag_values_inventory = _get_multi_region_tag_values(my_regions, base_account_number.group(), all_sorted_tag_values_inventory)
 
                 # Get additional multi accounts' tag values from all regions
                 for account_number in multi_accounts:
@@ -566,7 +584,7 @@ def add_update_tag_group():
                     multi_account_role_session = assume_role_multi_account(**kwargs)
                     session_credentials['multi_account_role_session'] = multi_account_role_session 
                     if session_credentials.get('multi_account_role_session'):
-                        all_sorted_tag_values_inventory = _get_multi_region_tag_values(account_number, all_sorted_tag_values_inventory)
+                        all_sorted_tag_values_inventory = _get_multi_region_tag_values(my_regions, account_number, all_sorted_tag_values_inventory)
                 
                 #Remove duplicate tag values & sort
                 all_sorted_tag_values_inventory = list(set(all_sorted_tag_values_inventory))
@@ -627,10 +645,11 @@ def tag_based_search():
             all_selected_tag_keys = list()
             all_selected_tag_values = list()
             claims = aws_auth.claims
+            my_regions = list()
 
             # Multi-region resource tag keys & values getter
-            def _get_multi_region_tag_keys_values(account_number, all_selected_tag_keys, all_selected_tag_values):
-                for region in validated_regions:
+            def _get_multi_region_tag_keys_values(my_regions, account_number, all_selected_tag_keys, all_selected_tag_values):
+                for region in my_regions:
                     inventory = resources_tags(resource_type, unit, region)
                     selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**session_credentials)
                     all_selected_tag_keys = all_selected_tag_keys + selected_tag_keys
@@ -645,9 +664,14 @@ def tag_based_search():
                 ssm_parameters.get('cognito-user-pool-id-value'),
                 ssm_parameters.get('cognito-default-region-value'))
 
+            if resource_type == "s3":
+                my_regions.append(tag_tamer_parameters.get('base_region'))
+            else:
+                my_regions = validated_regions
+
             # Get Tag Tamer base account's tag keys & values from all regions
             base_account_number = re.search('\d{12}', cognito_user_group_arn)
-            all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(base_account_number.group(), all_selected_tag_keys, all_selected_tag_values)
+            all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(my_regions, base_account_number.group(), all_selected_tag_keys, all_selected_tag_values)
 
             # Get additional multi accounts' tag keys & values from all regions
             for account_number in multi_accounts:
@@ -663,7 +687,7 @@ def tag_based_search():
                 multi_account_role_session = assume_role_multi_account(**kwargs)
                 session_credentials['multi_account_role_session'] = multi_account_role_session 
                 if session_credentials.get('multi_account_role_session'):
-                    all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(account_number, all_selected_tag_keys, all_selected_tag_values)
+                    all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(my_regions, account_number, all_selected_tag_keys, all_selected_tag_values)
             
             
             #Remove duplicate tag values & sort
@@ -719,19 +743,18 @@ def tag_resources():
             all_execution_status_alert_levels = list()
             all_chosen_resources = dict()
             claims = aws_auth.claims
+            my_regions = list()
 
             # Multi-region resource tag getter that match user-selected filter elements
-            def _get_multi_region_matching_resources(account_number):
+            def _get_multi_region_matching_resources(my_regions, account_number):
                 account_chosen_resources = dict()
-                for region in validated_regions:
+                for region in my_regions:
                     inventory = resources_tags(resource_type, unit, region)
                     # chosen_resources is a ordered dictionary which is a list of tuples
                     chosen_resources = OrderedDict()
                     chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
                     # Only include AWS regions with matching filtered resources
-                    #print("\nThe chosen resources are: ", chosen_resources)
                     if chosen_resources[0][0] != "No matching resources found":
-                    #if "No matching resources found" not in chosen_resources:
                         account_chosen_resources[region] = chosen_resources
                     all_execution_status_alert_levels.append(resources_execution_status.get('alert_level'))
                     #region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(resources_execution_status.get('status_message'))
@@ -743,8 +766,14 @@ def tag_resources():
                 ssm_parameters.get('cognito-user-pool-id-value'),
                 ssm_parameters.get('cognito-default-region-value'))
 
+            if resource_type == "s3":
+                my_regions.append(tag_tamer_parameters.get('base_region'))
+            else:
+                my_regions = validated_regions
+
+
             base_account_number = re.search('\d{12}', cognito_user_group_arn)
-            all_chosen_resources[base_account_number.group()] = _get_multi_region_matching_resources(base_account_number.group())
+            all_chosen_resources[base_account_number.group()] = _get_multi_region_matching_resources(my_regions, base_account_number.group())
             
             # Get additional multi accounts' tags from all regions
             for account_number in multi_accounts:
@@ -760,7 +789,7 @@ def tag_resources():
                 multi_account_role_session = assume_role_multi_account(**kwargs)
                 session_credentials['multi_account_role_session'] = multi_account_role_session 
                 if session_credentials.get('multi_account_role_session'):
-                    all_chosen_resources[account_number] = _get_multi_region_matching_resources(account_number)
+                    all_chosen_resources[account_number] = _get_multi_region_matching_resources(my_regions, account_number)
             
             tag_group_inventory = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
             tag_groups_all_info, tag_groups_execution_status = tag_group_inventory.get_all_tag_groups_key_values(tag_tamer_parameters.get('base_region'), **session_credentials)

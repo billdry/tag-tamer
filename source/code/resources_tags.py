@@ -245,7 +245,7 @@ class resources_tags:
                                             named_resource_inventory[resource['InstanceId']] = tag['Value']
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error. function: {} - {}".format(sys._getframe().f_code.co_name, error))
-                    named_resource_inventory["No matching resources found"] = "No matching resources foundNo matching resources found"
+                    named_resource_inventory["No matching resources found"] = "No matching resources found"
             else:
                 try:
                     named_resources = _get_named_resources('describe_instances')
@@ -483,11 +483,15 @@ class resources_tags:
                         resource_tags = dict()
                         sorted_resource_tags = dict()
                         if response.get('Tags'):
+                            user_applied_tags = False
                             for tag in response['Tags']:
                                 if not re.search("^aws:", tag["Key"]):
-                                   resource_tags[tag["Key"]] = tag["Value"]
+                                    resource_tags[tag["Key"]] = tag["Value"]
+                                    user_applied_tags = True
+                            if not user_applied_tags:
+                                resource_tags['No user-applied tag keys found'] = 'No user-applied tag values found'
                         else:
-                            resource_tags["No Tags Found"] = "No Tags Found"
+                            resource_tags["No user-applied tag keys found"] = "No user-applied tag values found"
                         sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
                         tagged_resource_inventory[resource_id_name[0]] = sorted_resource_tags
                     my_status.success(message='Resources and tags found!')
@@ -521,11 +525,16 @@ class resources_tags:
                         resource_tags = dict()
                         sorted_resource_tags = dict()
                         if response.get('Tags'):
+                            user_applied_tags = False
                             for tag in response['Tags']:
                                 if not re.search("^aws:", tag["Key"]):
                                    resource_tags[tag["Key"]] = tag["Value"]
+                                   user_applied_tags = True
+                            if not user_applied_tags:
+                                resource_tags['No user-applied tag keys found'] = 'No user-applied tag values found'
                         else:
-                            resource_tags["No Tags Found"] = "No Tags Found"
+                            resource_tags["No user-applied tag keys found"] = "No user-applied tag values found"
+                        
                         sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
                         tagged_resource_inventory[resource_id_name[0]] = sorted_resource_tags
                     my_status.success(message='Resources and tags found!')
@@ -564,11 +573,16 @@ class resources_tags:
                         resource_tags = dict()
                         sorted_resource_tags = dict()
                         if response.get('TagSet'):
+                            user_applied_tags = False
                             for tag in response['TagSet']:
                                 if not re.search("^aws:", tag["Key"]):
                                    resource_tags[tag["Key"]] = tag["Value"]
+                                   user_applied_tags = True
+                            if not user_applied_tags:
+                                resource_tags['No user-applied tag keys found'] = 'No user-applied tag values found'
                         else:
-                            resource_tags["No Tags Found"] = "No Tags Found"
+                            resource_tags["No user-applied tag keys found"] = "No user-applied tag values found"
+
                         sorted_resource_tags = OrderedDict(sorted(resource_tags.items()))
                         tagged_resource_inventory[resource_id_name[0]] = sorted_resource_tags
                     my_status.success(message='Resources and tags found!')
@@ -682,34 +696,39 @@ class resources_tags:
                 else:
                     my_status.error()
         elif self.unit == 'buckets':
-            try:
-                if session_credentials.get('multi_account_role_session'):
-                    selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
-                else:
-                    selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
-                
-                item_count = False
-                for item in selected_resource_type.buckets.all():
+            if session_credentials.get('multi_account_role_session'):
+                selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
+            else:
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+            #boto_api_error = False
+            item_count = False
+            for item in list(selected_resource_type.buckets.all()):
+                try:
                     if selected_resource_type.BucketTagging(item.name).tag_set:
                         for tag in selected_resource_type.BucketTagging(item.name).tag_set:
                             if not re.search("^aws:", tag["Key"]):
                                 sorted_tag_keys_inventory.append(tag["Key"])
                                 item_count = True
-                                my_status.success(message='Tag keys found!')
-                if not item_count:
-                    sorted_tag_keys_inventory.append("No tags keys found!")
-                    my_status.warning(message='No tag keys found!')
-                
-            except botocore.exceptions.ClientError as error:
-                errorString = "Boto3 API returned error. function: {} - {}"
-                log.error(errorString.format(self.unit, error))
-                sorted_tag_keys_inventory.append("No Tags Found")
-                if error.response['Error']['Code'] == 'AccessDeniedException' or \
-                    error.response['Error']['Code'] == 'UnauthorizedOperation' or \
-                    error.response['Error']['Code'] == 'AccessDenied':
-                    my_status.error(message='You are not authorized to view these resources')
-                else:
-                    my_status.error()
+                except botocore.exceptions.ClientError as error:
+                    if error.response['Error']['Code'] == 'NoSuchTagSet':
+                        errorString = "Boto3 API returned error. function: {} - bucket: {} - error message: {}"
+                        log.info(errorString.format(sys._getframe().f_code.co_name, item.name, error))
+                    elif error.response['Error']['Code'] == 'AccessDeniedException' or \
+                        error.response['Error']['Code'] == 'UnauthorizedOperation' or \
+                        error.response['Error']['Code'] == 'AccessDenied':
+                        #boto_api_error = 'You are not authorized to view these resources'
+                        errorString = "Boto3 API returned error. function: {} - bucket: {} - error message: {}"
+                        log.error(errorString.format(sys._getframe().f_code.co_name, item.name, error))
+                    else:
+                        #boto_api_error = "A Boto3 API error occurred.  Please contact your Tag Tamer administrator for assistance."
+                        errorString = "Boto3 API returned error. function: {} - error message: {}"
+                        log.error(errorString.format(sys._getframe().f_code.co_name, error))
+
+            if item_count:
+                my_status.success(message='Tag keys found!')
+            else:
+                my_status.warning(message='No tag keys found!')
+
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             sorted_tag_keys_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_keys(**self.session_credentials)
@@ -804,32 +823,39 @@ class resources_tags:
                 else:
                     my_status.error()
         elif self.unit == 'buckets':
-            try:
-                if session_credentials.get('multi_account_role_session'):
-                    selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
-                else:
-                    selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
-                item_count = False
-                for item in selected_resource_type.buckets.all():
+            if session_credentials.get('multi_account_role_session'):
+                selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
+            else:
+                selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+            #boto_api_error = False
+            item_count = False
+            for item in list(selected_resource_type.buckets.all()):
+                try:
                     if selected_resource_type.BucketTagging(item.name).tag_set:
                         for tag in selected_resource_type.BucketTagging(item.name).tag_set:
                             if not re.search("^aws:", tag["Key"])  and tag["Value"]:
                                 sorted_tag_values_inventory.append(tag["Value"])
                                 item_count = True
-                                my_status.success(message='Tag values found!')
-                if not item_count:
-                    sorted_tag_values_inventory.append("No tags values found!")
-                    my_status.warning(message='No tag values found!')
-            except botocore.exceptions.ClientError as error:
-                errorString = "Boto3 API returned error. function: {} - {}"
-                log.error(errorString.format(self.unit, error))
-                sorted_tag_values_inventory.append("No Tags Found")
-                if error.response['Error']['Code'] == 'AccessDeniedException' or \
-                    error.response['Error']['Code'] == 'UnauthorizedOperation' or \
-                    error.response['Error']['Code'] == 'AccessDenied':
-                    my_status.error(message='You are not authorized to view these resources')
-                else:
-                    my_status.error()
+                except botocore.exceptions.ClientError as error:
+                    if error.response['Error']['Code'] == 'NoSuchTagSet':
+                        errorString = "Boto3 API returned error. function: {} - bucket: {} - error message: {}"
+                        log.info(errorString.format(sys._getframe().f_code.co_name, item.name, error))
+                    elif error.response['Error']['Code'] == 'AccessDeniedException' or \
+                        error.response['Error']['Code'] == 'UnauthorizedOperation' or \
+                        error.response['Error']['Code'] == 'AccessDenied':
+                        #boto_api_error = 'You are not authorized to view these resources'
+                        errorString = "Boto3 API returned error. function: {} - bucket: {} - error message: {}"
+                        log.error(errorString.format(sys._getframe().f_code.co_name, item.name, error))
+                    else:
+                        #boto_api_error = "A Boto3 API error occurred.  Please contact your Tag Tamer administrator for assistance."
+                        errorString = "Boto3 API returned error. function: {} - error message: {}"
+                        log.error(errorString.format(sys._getframe().f_code.co_name, error))
+
+            if item_count:
+                my_status.success(message='Tag values found!')
+            else:
+                my_status.warning(message='No tag values found!')
+
         elif self.unit == 'functions':
             functions_inventory = lambda_resources_tags(self.resource_type, self.region)
             sorted_tag_values_inventory, lambda_resources_status = functions_inventory.get_lambda_tag_values(**self.session_credentials)
@@ -896,7 +922,7 @@ class resources_tags:
                 else:
                     my_status.error()
             resources_status = my_status.get_status()
-            
+
         elif self.unit == 'volumes':
             try:
                 if session_credentials.get('multi_account_role_session'):
