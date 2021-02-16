@@ -251,11 +251,8 @@ class rds_resources_tags:
                 else:
                     my_status.error()
 
-        # Sort the resources based on the resource's name
-        ordered_inventory = OrderedDict()
-        ordered_inventory = sorted(resource_inventory.items(), key=lambda item: item[1])  
-        #return resource_inventory, my_status.get_status()
-        return ordered_inventory, my_status.get_status()
+        return resource_inventory, my_status.get_status()
+        
           
 
     # method - get_rds_resources_tags

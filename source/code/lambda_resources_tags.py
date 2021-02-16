@@ -61,7 +61,7 @@ class lambda_resources_tags:
             client = this_session.client(self.resource_type, region_name=self.region)
 
         def _intersection_union_invalid(tag_dict, function_name, function_arn):
-            resource_inventory['No matching resource'] = 'No matching resource'
+            resource_inventory['No matching resources found'] = 'No matching resources found'
         
         if self.filter_tags.get('conjunction') == 'AND':
             
@@ -251,11 +251,7 @@ class lambda_resources_tags:
                 else:
                     my_status.error()
 
-        # Sort the resources based on the resource's name
-        ordered_inventory = OrderedDict()
-        ordered_inventory = sorted(resource_inventory.items(), key=lambda item: item[1])  
-        #return resource_inventory, my_status.get_status()
-        return ordered_inventory, my_status.get_status()
+        return resource_inventory, my_status.get_status()
           
 
     # method - get_lambda_resources_tags

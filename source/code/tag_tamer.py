@@ -645,11 +645,11 @@ def tag_based_search():
                 ssm_parameters.get('cognito-user-pool-id-value'),
                 ssm_parameters.get('cognito-default-region-value'))
 
-            # Get Tag Tamer base account's tag values from all regions
+            # Get Tag Tamer base account's tag keys & values from all regions
             base_account_number = re.search('\d{12}', cognito_user_group_arn)
             all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(base_account_number.group(), all_selected_tag_keys, all_selected_tag_values)
 
-            # Get additional multi accounts' tag values from all regions
+            # Get additional multi accounts' tag keys & values from all regions
             for account_number in multi_accounts:
                 # Swap account number in Cognito user's assigned IAM role ARN
                 # Cognito user's assumed IAM role name must be identical in all AWS accounts  
@@ -720,19 +720,22 @@ def tag_resources():
             all_chosen_resources = dict()
             claims = aws_auth.claims
 
-            # Multi-region resource tag getter
-            def _get_multi_region_tags(account_number):
+            # Multi-region resource tag getter that match user-selected filter elements
+            def _get_multi_region_matching_resources(account_number):
                 account_chosen_resources = dict()
                 for region in validated_regions:
                     inventory = resources_tags(resource_type, unit, region)
+                    # chosen_resources is a ordered dictionary which is a list of tuples
                     chosen_resources = OrderedDict()
                     chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
-                    # Only include AWS regions with filtered resources 
-                    if len(chosen_resources):
+                    # Only include AWS regions with matching filtered resources
+                    #print("\nThe chosen resources are: ", chosen_resources)
+                    if chosen_resources[0][0] != "No matching resources found":
+                    #if "No matching resources found" not in chosen_resources:
                         account_chosen_resources[region] = chosen_resources
                     all_execution_status_alert_levels.append(resources_execution_status.get('alert_level'))
-                    region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(resources_execution_status.get('status_message'))
-                    flash(region_execution_status_message, resources_execution_status.get('alert_level'))
+                    #region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(resources_execution_status.get('status_message'))
+                    #flash(region_execution_status_message, resources_execution_status.get('alert_level'))
                 return account_chosen_resources
                     
             # Get the user's assigned Cognito user pool group's IAM role ARN
@@ -741,10 +744,7 @@ def tag_resources():
                 ssm_parameters.get('cognito-default-region-value'))
 
             base_account_number = re.search('\d{12}', cognito_user_group_arn)
-            #region_sorted_tagged_inventory = dict()
-            # Get base account's tags from all regions
-            #region_sorted_tagged_inventory = _get_multi_region_tags(base_account_number.group(), file_open_method)
-            all_chosen_resources[base_account_number.group()] = _get_multi_region_tags(base_account_number.group())
+            all_chosen_resources[base_account_number.group()] = _get_multi_region_matching_resources(base_account_number.group())
             
             # Get additional multi accounts' tags from all regions
             for account_number in multi_accounts:
@@ -760,13 +760,13 @@ def tag_resources():
                 multi_account_role_session = assume_role_multi_account(**kwargs)
                 session_credentials['multi_account_role_session'] = multi_account_role_session 
                 if session_credentials.get('multi_account_role_session'):
-                    all_chosen_resources[account_number] = _get_multi_region_tags(account_number)
+                    all_chosen_resources[account_number] = _get_multi_region_matching_resources(account_number)
             
             tag_group_inventory = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
             tag_groups_all_info, tag_groups_execution_status = tag_group_inventory.get_all_tag_groups_key_values(tag_tamer_parameters.get('base_region'), **session_credentials)
             if 'success' in all_execution_status_alert_levels and tag_groups_execution_status.get('alert_level') == 'success':
                 log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-                return render_template('tag-resources.html', resource_type=resource_type, all_resource_inventory=all_chosen_resources, tag_groups_all_info=tag_groups_all_info) 
+                return render_template('tag-resources.html', resource_type=resource_type, all_resource_inventory=all_chosen_resources, tag_groups_all_info=tag_groups_all_info, filter_elements=filter_elements) 
             else:
                 log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
                 flash('You are not authorized to modify these resources', 'danger')
@@ -791,50 +791,83 @@ def apply_tags_to_resources():
         all_resources_to_tag = dict()
         resource_type, unit = get_resource_type_unit(request.form.get('resource_type'))
         form_contents = request.form.to_dict()
+        filter_elements = dict()
+        if request.form.get('tag_key1'):
+            filter_elements['tag_key1'] = request.form.get('tag_key1')
+            form_contents.pop('tag_key1')
+        if request.form.get('tag_value1'):
+            filter_elements['tag_value1'] = request.form.get('tag_value1')
+            form_contents.pop('tag_value1')
+        if request.form.get('tag_key2'):
+            filter_elements['tag_key2'] = request.form.get('tag_key2')
+            form_contents.pop('tag_key2')
+        if request.form.get('tag_value2'):
+            filter_elements['tag_value2'] = request.form.get('tag_value2')
+            form_contents.pop('tag_value2')
+        if request.form.get('conjunction'):
+            filter_elements['conjunction'] = request.form.get('conjunction')
+            form_contents.pop('conjunction')
         form_contents.pop("csrf_token")
         form_contents.pop("resource_type")
         for key, value in form_contents.items():
             if re.search("^resource", key):
                 resource_metadata = list()
+                # resource_metadata is a list of "resource",account_number,region,resource_id
                 resource_metadata = key.split(",")
-                # resource_metadata is a list of "resource",region,resource_id
+                # Create nested dictionaries of resources to tag using account & region as the dictionary keys
                 if not all_resources_to_tag.get(resource_metadata[1]):
-                    all_resources_to_tag[resource_metadata[1]] = list()
-                all_resources_to_tag[resource_metadata[1]].append(resource_metadata[2])
+                    #all_resources_to_tag[resource_metadata[1]] = list()
+                    all_resources_to_tag[resource_metadata[1]] = dict()
+                #all_resources_to_tag[resource_metadata[1]].append(resource_metadata[2])
+                if not all_resources_to_tag[resource_metadata[1]].get(resource_metadata[2]):
+                    all_resources_to_tag[resource_metadata[1]][resource_metadata[2]] = list()
+                all_resources_to_tag[resource_metadata[1]][resource_metadata[2]].append(resource_metadata[3])
+                # After processing key that begins with "resource" skip to next key:value pair in this for loop
                 continue
+            # Only user-selected Tag Groups will have values
             if value:
                     tag_kv = dict()
                     tag_kv["Key"] = key
                     tag_kv["Value"] = value
                     chosen_tags.append(tag_kv)
 
+        # Get the user's assigned Cognito user pool group's IAM role ARN
+        cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
+            ssm_parameters.get('cognito-user-pool-id-value'),
+            ssm_parameters.get('cognito-default-region-value'))
+
+        claims = aws_auth.claims
         all_updated_sorted_tagged_inventory = dict()
         all_execution_status_alert_levels = list()
-        for region, resources_to_tag in all_resources_to_tag.items():
-            chosen_resources_to_tag = resources_tags(resource_type, unit, region)     
-            set_resources_tags_execution_status = chosen_resources_to_tag.set_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
-            all_execution_status_alert_levels.append(set_resources_tags_execution_status.get('alert_level'))
-            region_execution_status_message = str(region) + " - " + str(set_resources_tags_execution_status.get('status_message'))
-            flash(region_execution_status_message, set_resources_tags_execution_status.get('alert_level'))
-            
-            if set_resources_tags_execution_status.get('alert_level') == 'success':
-                updated_sorted_tagged_inventory = dict()
-                filter_tags = dict()
-                # Call get_resources with empty filter tag dictionary to return all resource ID's & names
-                all_resource_id_names, all_resource_id_names_status = chosen_resources_to_tag.get_resources(filter_tags, **session_credentials)
-                claims = aws_auth.claims
-                session_credentials["chosen_resources"] = all_resource_id_names
-                session_credentials["region"] = region
-                session_credentials["user_name"] = claims.get('username')
-                all_sorted_tagged_inventory, all_sorted_tagged_inventory_execution_status = chosen_resources_to_tag.get_resources_tags(**session_credentials)
-                if all_sorted_tagged_inventory_execution_status.get('alert_level') == 'success':
-                    for resource_id in resources_to_tag:
-                        updated_sorted_tagged_inventory[resource_id] = all_sorted_tagged_inventory[resource_id]
-                    all_updated_sorted_tagged_inventory[region] = updated_sorted_tagged_inventory
-            else:
-                log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-                flash('You are not authorized to view these resources', 'danger')
-                return render_template('blank.html')
+
+        # Assign user-selected Tag Groups to user-selected resources in accounts & regions
+        for account_number, region_resources_to_tag in all_resources_to_tag.items():
+            account_role_arn = re.sub('\d{12}', account_number, cognito_user_group_arn)
+            kwargs = dict()
+            kwargs['account_role_arn'] = account_role_arn
+            kwargs['user_email'] = user_email
+            kwargs['user_id'] = claims.get('username')
+            kwargs['user_source'] = user_source
+            kwargs['session_credentials'] = session_credentials
+            multi_account_role_session = assume_role_multi_account(**kwargs)
+            session_credentials['multi_account_role_session'] = multi_account_role_session 
+            if session_credentials.get('multi_account_role_session'):
+                region_sorted_tagged_inventory = dict()
+                for region, resources_to_tag in region_resources_to_tag.items():
+                    chosen_resources_to_tag = resources_tags(resource_type, unit, region)     
+                    set_resources_tags_execution_status = chosen_resources_to_tag.set_resources_tags(resources_to_tag, chosen_tags, **session_credentials)
+                    all_execution_status_alert_levels.append(set_resources_tags_execution_status.get('alert_level'))
+                    region_execution_status_message = str(region) + " - " + str(set_resources_tags_execution_status.get('status_message'))
+                    flash(region_execution_status_message, set_resources_tags_execution_status.get('alert_level'))
+                    # Get updated resources & tags after setting user-selected Tag Options
+                    inventory = resources_tags(resource_type, unit, region)
+                    chosen_resources = OrderedDict()
+                    chosen_resources, resources_execution_status = inventory.get_resources(filter_elements, **session_credentials)
+                    session_credentials["region"] = region
+                    session_credentials["chosen_resources"] = chosen_resources
+                    sorted_tagged_inventory, sorted_tagged_inventory_execution_status = inventory.get_resources_tags(**session_credentials)
+                    region_sorted_tagged_inventory[region] = sorted_tagged_inventory
+                all_updated_sorted_tagged_inventory[account_number] = region_sorted_tagged_inventory
 
         if len(all_updated_sorted_tagged_inventory):
             return render_template('updated-tags.html', all_updated_inventory=all_updated_sorted_tagged_inventory)
