@@ -474,7 +474,7 @@ def edit_tag_group():
                     flash(tag_group_key_values_execution_status['status_message'], tag_group_key_values_execution_status['alert_level'])
                     return render_template('blank.html')
             # Second conditional checks if the user creates a brand new Tag Group
-            elif request.form.get('new_tag_group_name') and re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')):
+            elif request.form.get('new_tag_group_name') and re.search("[\w\-\.\:\/\=\+\@ ]{1,128}", request.form.get('new_tag_group_name')):
                 selected_tag_group_name = request.form.get('new_tag_group_name')
                 tag_group_key_values = dict()
                 return render_template('edit-tag-group.html', resource_type=resource_type, selected_tag_group_name=selected_tag_group_name, selected_tag_group_attributes=tag_group_key_values, selected_resource_type_tag_values_inventory=all_sorted_tag_values_inventory)
@@ -499,16 +499,16 @@ def add_update_tag_group():
     session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
     if user_email and session_credentials.get('AccessKeyId'):
         if request.form.get('new_tag_group_name') and \
-            re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_name')) and \
+            re.search("[\w\-\.\:\/\=\+\@ ]{1,128}", request.form.get('new_tag_group_name')) and \
             request.form.get('new_tag_group_key_name') and \
-            re.search("^\w[\w\- ]{0,125}\w$", request.form.get('new_tag_group_key_name')):
+            re.search("[\w\-\.\:\/\=\+\@ ]{1,128}", request.form.get('new_tag_group_key_name')):
             tag_group_name = request.form.get('new_tag_group_name')
             tag_group_key_name = request.form.get('new_tag_group_key_name')
             tag_group_action = "create"
         elif request.form.get('selected_tag_group_name') and \
-            re.search("^\w[\w\- ]{0,125}\w$", request.form.get('selected_tag_group_name')) and \
+            re.search("[\w\-\.\:\/\=\+\@ ]{1,128}", request.form.get('selected_tag_group_name')) and \
             request.form.get('selected_tag_group_key_name') and \
-            re.search("^\w[\w\- ]{0,125}\w$", request.form.get('selected_tag_group_key_name')):
+            re.search("[\w\-\.\:\/\=\+\@ ]{1,128}", request.form.get('selected_tag_group_key_name')):
             tag_group_name = request.form.get('selected_tag_group_name')
             tag_group_key_name = request.form.get('selected_tag_group_key_name')
             tag_group_action = "update"
@@ -518,14 +518,14 @@ def add_update_tag_group():
         tag_group_value_options = []
         form_contents = request.form.to_dict()
         for key, value in form_contents.items():
-            if value == "checked" and re.search("^\w[\w\- ]{0,223}\w$", key):
+            if value == "checked" and re.search("[\w\-\.\:\/\=\+\@ ]{1,256}", key):
                 tag_group_value_options.append(key)
         if request.form.get("new_tag_group_values"):
             approved_new_tag_group_values = list()
             new_tag_group_values = request.form.get("new_tag_group_values").split(",")
             for value in new_tag_group_values:
                 core_value = value.strip(" ")
-                if re.search("^\w[\w\- ]{0,223}\w$", core_value):
+                if re.search("[\w\-\.\:\/\=\+\@ ]{1,256}", core_value):
                     approved_new_tag_group_values.append(core_value)
             tag_group_value_options.extend(approved_new_tag_group_values)
 
@@ -770,7 +770,6 @@ def tag_resources():
                 my_regions.append(tag_tamer_parameters.get('base_region'))
             else:
                 my_regions = validated_regions
-
 
             base_account_number = re.search('\d{12}', cognito_user_group_arn)
             all_chosen_resources[base_account_number.group()] = _get_multi_region_matching_resources(my_regions, base_account_number.group())
