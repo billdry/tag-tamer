@@ -847,9 +847,7 @@ def apply_tags_to_resources():
                 resource_metadata = key.split(",")
                 # Create nested dictionaries of resources to tag using account & region as the dictionary keys
                 if not all_resources_to_tag.get(resource_metadata[1]):
-                    #all_resources_to_tag[resource_metadata[1]] = list()
                     all_resources_to_tag[resource_metadata[1]] = dict()
-                #all_resources_to_tag[resource_metadata[1]].append(resource_metadata[2])
                 if not all_resources_to_tag[resource_metadata[1]].get(resource_metadata[2]):
                     all_resources_to_tag[resource_metadata[1]][resource_metadata[2]] = list()
                 all_resources_to_tag[resource_metadata[1]][resource_metadata[2]].append(resource_metadata[3])
@@ -988,25 +986,70 @@ def set_service_catalog():
 @aws_auth.authentication_required
 def find_config_rules():
     user_email, user_source = get_user_email_ip(request)
-    session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
+
     if user_email and session_credentials.get('AccessKeyId'):
+        session_credentials = get_user_session_credentials(request.cookies.get('id_token'))
+        all_chosen_resources = dict()
+        all_execution_status_alert_levels = list()
+        claims = aws_auth.claims
+        
         #Get the Tag Group names & associated tag keys
         tag_group_inventory = dict()
         tag_groups = get_tag_groups(tag_tamer_parameters.get('base_region'), **session_credentials)
         tag_group_inventory, tag_groups_execution_status = tag_groups.get_tag_group_names()
 
         #Get the AWS Config Rules
-        config_rules_ids_names = dict()
-        config_rules = config(tag_tamer_parameters.get('base_region'), **session_credentials)
-        config_rules_ids_names, config_rules_execution_status = config_rules.get_config_rules_ids_names()
+        #config_rules_ids_names = dict()
+        #config_rules = config(tag_tamer_parameters.get('base_region'), **session_credentials)
+        #config_rules_ids_names, config_rules_execution_status = config_rules.get_config_rules_ids_names()
         
-        if config_rules_execution_status.get('alert_level') == 'success' and tag_groups_execution_status.get('alert_level') == 'success':
+        # Multi-region config rule getter
+        def _get_multi_region_matching_config_rules(account_number):
+            account_chosen_resources = dict()
+            for region in validated_regions:
+                #Get the AWS Config Rules
+                config_rules_ids_names = dict()
+                config_rules = config(region, **session_credentials)
+                config_rules_ids_names, config_rules_execution_status = config_rules.get_config_rules_ids_names()
+                # Only include AWS regions with matching filtered resources
+                if config_rules_ids_names:
+                    account_chosen_resources[region] = config_rules_ids_names
+                region_execution_status_message = str(account_number) + " - " + str(region) + " - " + str(resources_execution_status.get('status_message'))
+                flash(region_execution_status_message, config_rules_execution_status.get('alert_level'))
+                all_execution_status_alert_levels.append(config_rules_execution_status.get('alert_level'))
+            return account_chosen_resources
+                
+        # Get the user's assigned Cognito user pool group's IAM role ARN
+        cognito_user_group_arn = get_user_group_arns(claims.get('username'), 
+            ssm_parameters.get('cognito-user-pool-id-value'),
+            ssm_parameters.get('cognito-default-region-value'))
+
+        base_account_number = re.search('\d{12}', cognito_user_group_arn)
+        all_chosen_resources[base_account_number.group()] = _get_multi_region_matching_config_rules(base_account_number.group())
+        
+        # Get additional multi accounts' tags from all regions
+        for account_number in multi_accounts:
+            # Swap account number in Cognito user's assigned IAM role ARN
+            # Cognito user's assumed IAM role name must be identical in all AWS accounts  
+            account_role_arn = re.sub('\d{12}', account_number, cognito_user_group_arn)
+            kwargs = dict()
+            kwargs['account_role_arn'] = account_role_arn
+            kwargs['user_email'] = user_email
+            kwargs['user_id'] = claims.get('username')
+            kwargs['user_source'] = user_source
+            kwargs['session_credentials'] = session_credentials
+            multi_account_role_session = assume_role_multi_account(**kwargs)
+            session_credentials['multi_account_role_session'] = multi_account_role_session 
+            if session_credentials.get('multi_account_role_session'):
+                all_chosen_resources[account_number] = _get_multi_region_matching_config_rules(account_number)
+        
+        if 'success' in all_execution_status_alert_levels and tag_groups_execution_status.get('alert_level') == 'success':
             log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-            return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
-        elif config_rules_execution_status.get('alert_level') == 'warning' and tag_groups_execution_status.get('alert_level') == 'success':
+            return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=all_chosen_resources)
+        elif 'warning' in all_execution_status_alert_levels and tag_groups_execution_status.get('alert_level') == 'success':
             log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
-            flash(config_rules_execution_status['status_message'], config_rules_execution_status['alert_level'])
-            return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=config_rules_ids_names)
+            #flash(config_rules_execution_status['status_message'], config_rules_execution_status['alert_level'])
+            return render_template('find-config-rules.html', tag_group_inventory=tag_group_inventory, config_rules_ids_names=all_chosen_resources)
         else:
             log.error("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - FAILURE".format(user_email, sys._getframe().f_code.co_name, date_time_now(), user_source, session_credentials['AccessKeyId']))
             flash('You are not authorized to modify these resources', 'danger')
