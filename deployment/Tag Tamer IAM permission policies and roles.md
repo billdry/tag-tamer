@@ -132,7 +132,7 @@ arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
     ]
 }
 ```
-### IAM role permissions policy allowing user to perform all Tag Tamer web app actions
+### Example IAM role permissions policy allowing user to perform all Tag Tamer web app actions
 
 ```
 {
@@ -221,12 +221,20 @@ arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 ```
 
 
-#### IAM role trust policy
+#### Example IAM role trust policy
 
 ```
 {
   "Version": "2012-10-17",
   "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::123456789012:role/DEMOTagTamerAllAdminActionsRole"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {}
+    },
     {
       "Sid": "",
       "Effect": "Allow",
