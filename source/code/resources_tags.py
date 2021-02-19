@@ -105,7 +105,7 @@ class resources_tags:
                             if item.get('Instances'):
                                 untagged_resources = list()
                                 for resource in item['Instances']:
-                                    # Untagged resources have no Tags attribute
+                                    # Untagged resources have no Tags attribute. Identify those & update list of instances 
                                     if not resource.get('Tags'):
                                         untagged_resources.append(resource)
                                 item['Instances'] = untagged_resources
@@ -235,33 +235,42 @@ class resources_tags:
             if self.filter_tags.get('tag_key1') or self.filter_tags.get('tag_key2'):
                 try:
                     filtered_resources = _get_filtered_resources('describe_instances')
-                    for _, results in filtered_resources.items():
-                        for item in results['Reservations']:
-                            for resource in item['Instances']:
-                                named_resource_inventory[resource['InstanceId']] = 'no name found'
-                                if resource.get('Tags'):
-                                    for tag in resource['Tags']:
-                                        if(tag['Key'].lower() == 'name'):
-                                            named_resource_inventory[resource['InstanceId']] = tag['Value']
+                    if len(filtered_resources):
+                        for _, results in filtered_resources.items():
+                            for item in results['Reservations']:
+                                for resource in item['Instances']:
+                                    named_resource_inventory[resource['InstanceId']] = 'no name found'
+                                    if resource.get('Tags'):
+                                        for tag in resource['Tags']:
+                                            if(tag['Key'].lower() == 'name'):
+                                                named_resource_inventory[resource['InstanceId']] = tag['Value']
+                        my_status.success(message='Resource tags found!')
+                    else:
+                        my_status.warning(message='No matching resources found')
+                        named_resource_inventory["No matching resources found"] = "No matching resources found"
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error. function: {} - {}".format(sys._getframe().f_code.co_name, error))
                     named_resource_inventory["No matching resources found"] = "No matching resources found"
             else:
                 try:
                     named_resources = _get_named_resources('describe_instances')
-                    if session_credentials.get('multi_account_role_session'):
-                        selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
+                    if len(named_resources):
+                        if session_credentials.get('multi_account_role_session'):
+                            selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
+                        else:
+                            selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                        # Get all the resource ID's then add actual names to those having existing "name tags"
+                        for resource in selected_resource_type.instances.all():
+                            named_resource_inventory[resource.id] = 'no name found'
+                        for item in named_resources['Reservations']:
+                            for resource in item['Instances']:
+                                for tag in resource['Tags']:
+                                    if(tag['Key'].lower() == 'name'):
+                                        named_resource_inventory[resource['InstanceId']] = tag['Value']
+                        my_status.success(message='Resource tags found!')
                     else:
-                        selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
-                    # Get all the resource ID's then add actual names to those having existing "name tags"
-                    for resource in selected_resource_type.instances.all():
-                        named_resource_inventory[resource.id] = 'no name found'
-                    for item in named_resources['Reservations']:
-                        for resource in item['Instances']:
-                            for tag in resource['Tags']:
-                                if(tag['Key'].lower() == 'name'):
-                                    named_resource_inventory[resource['InstanceId']] = tag['Value']
-                    my_status.success(message='Resources Found!')
+                        my_status.warning(message='No matching resources found')
+                        named_resource_inventory["No matching resources found"] = "No matching resources found"
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error. function: {} - {}".format(sys._getframe().f_code.co_name, error))
                     if error.response['Error']['Code'] == 'AccessDeniedException' or \
@@ -278,31 +287,40 @@ class resources_tags:
             if self.filter_tags.get('tag_key1') or self.filter_tags.get('tag_key2'):
                 try:
                     filtered_resources = _get_filtered_resources('describe_volumes')
-                    for _, results in filtered_resources.items():
-                        for item in results['Volumes']:
-                            named_resource_inventory[item['VolumeId']] = 'no name found'
-                            if item.get('Tags'):
-                                for tag in item['Tags']:
-                                    if(tag['Key'].lower() == 'name'):
-                                        named_resource_inventory[item['VolumeId']] = tag['Value']
+                    if len(filtered_resources):
+                        for _, results in filtered_resources.items():
+                            for item in results['Volumes']:
+                                named_resource_inventory[item['VolumeId']] = 'no name found'
+                                if item.get('Tags'):
+                                    for tag in item['Tags']:
+                                        if(tag['Key'].lower() == 'name'):
+                                                named_resource_inventory[item['VolumeId']] = tag['Value']
+                        my_status.success(message='Resource tags found!')
+                    else:
+                        my_status.warning(message='No matching resources found')
+                        named_resource_inventory["No matching resources found"] = "No matching resources found"
                 except botocore.exceptions.ClientError as error:
                     log.error("Boto3 API returned error. function: {} - {}".format(sys._getframe().f_code.co_name, error))
                     named_resource_inventory["No matching resources found"] = "No matching resources found"
             else:
                 try:
                     named_resources = _get_named_resources('describe_volumes')
-                    if session_credentials.get('multi_account_role_session'):
-                        selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
+                    if len(named_resources):
+                        if session_credentials.get('multi_account_role_session'):
+                            selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
+                        else:
+                            selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
+                        # Get all the resource ID's then add actual names to those having existing "name tags"
+                        for resource in selected_resource_type.volumes.all():
+                            named_resource_inventory[resource.id] = 'no name found'
+                        for item in named_resources['Volumes']:
+                                for tag in item['Tags']:
+                                    if(tag['Key'].lower() == 'name'):
+                                        named_resource_inventory[item['VolumeId']] = tag['Value']
+                        my_status.success(message='Resources Found!')
                     else:
-                        selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
-                    # Get all the resource ID's then add actual names to those having existing "name tags"
-                    for resource in selected_resource_type.volumes.all():
-                        named_resource_inventory[resource.id] = 'no name found'
-                    for item in named_resources['Volumes']:
-                            for tag in item['Tags']:
-                                if(tag['Key'].lower() == 'name'):
-                                    named_resource_inventory[item['VolumeId']] = tag['Value']
-                    my_status.success(message='Resources Found!')
+                        my_status.warning(message='No matching resources found')
+                        named_resource_inventory["No matching resources found"] = "No matching resources found"
                 except botocore.exceptions.ClientError as error:
                     errorString = "Boto3 API returned error. function: {} - {}"
                     log.error(errorString.format(sys._getframe().f_code.co_name, error))
