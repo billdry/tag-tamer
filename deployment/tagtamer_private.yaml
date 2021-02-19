@@ -206,7 +206,7 @@ Resources:
             #!/bin/bash -xe
             cd /var/tmp
             yum -y install git dos2unix
-            git clone https://github.com/billdry/tag-tamer-deployment-test.git
+            git clone git clone https://github.com/billdry/tag-tamer.git
             cd tagtamer/source
             dos2unix tagtamer-install.sh
             bash tagtamer-install.sh
