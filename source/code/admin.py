@@ -86,7 +86,6 @@ def assume_role_multi_account(**kwargs):
                 aws_access_key_id=response["Credentials"]["AccessKeyId"],
                 aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
                 aws_session_token=response["Credentials"]["SessionToken"]
-                #region_name=region,
             )
             log.info("\"{}\" invoked \"{}\" on {} from location: \"{}\" using AWSAuth access key id: {} - SUCCESS".format(kwargs.get('user_email'), sys._getframe().f_code.co_name, date_time_now(), kwargs.get('user_source'), response["Credentials"]["AccessKeyId"]))
             my_status.success(message='Assumed multi-account role & created user session!')
