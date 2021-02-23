@@ -23,6 +23,10 @@ Metadata:
           default: "Cognito Identity Pool configuration"
         Parameters: 
           - TagTamerIdentityPoolName
+      - Label:
+          default: "List of multiple AWS account numbers to manage"
+        Parameters:
+           - TagTamerMultiAccounts
 
 Parameters:
   KeyName:
@@ -60,7 +64,10 @@ Parameters:
     Type: String
     Default: tag_tamer_identity_pool
     Description: Name of Tag Tamer's Amazon Cognito Identity Pool
-
+  TagTamerMultiAccounts:
+    Type: String
+    Description: Comma separated list of AWS account numbers Tag Tamer should manage.  Do not include the AWS account number where the Tag Tamer EC2 instance is deployed.
+  
 Mappings:
   SourceCode:
     General:
@@ -450,7 +457,7 @@ Resources:
     Properties:
       Name: /tag-tamer/jwt-cookie-secure
       Type: String
-      Value: 'False'
+      Value: 'True'
 
   TagTamerJwtAccessCookieName:
     Type: AWS::SSM::Parameter
@@ -464,7 +471,14 @@ Resources:
     Properties:
       Name: /tag-tamer/jwt-cookie-csrf-protect
       Type: String
-      Value: 'False'
+      Value: 'True'
+
+  TagTamerMultiAccountsList:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tag-tamer/multi-accounts
+      Type: String
+      Value: !Ref TagTamerMultiAccounts
 
   UserPoolClientRole:
   # Created to execute Lambda which gets userpool app client config values

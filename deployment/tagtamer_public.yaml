@@ -64,7 +64,7 @@ Parameters:
     Description: Name of Tag Tamer's Amazon Cognito Identity Pool
   TagTamerMultiAccounts:
     Type: String
-    Description: Comma separated list of AWS account numbers Tag Tamer should manage.  Do not include the account number where the Tag Tamer EC2 instance is deployed.
+    Description: Comma separated list of AWS account numbers Tag Tamer should manage.  Do not include the AWS account number where the Tag Tamer EC2 instance is deployed.
   
 Mappings:
   SourceCode:
