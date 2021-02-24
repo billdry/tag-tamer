@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: AWS Cloudformation template for TagTamer solution components - version - RC15
+Description: AWS Cloudformation template for TagTamer solution components - version - RC16
 
 Metadata: 
   AWS::CloudFormation::Interface: 
