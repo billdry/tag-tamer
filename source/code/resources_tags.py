@@ -579,13 +579,17 @@ class resources_tags:
                                 Bucket=resource_id_name[0]
                             )
                         except botocore.exceptions.ClientError as error:
-                            errorString = "Boto3 API returned error. function: {} - {} - {}"
-                            log.error(errorString.format(sys._getframe().f_code.co_name, resource_id_name[0], error))
-                            if error.response['Error']['Code'] == 'AccessDeniedException' or \
+                            errorString = "Boto3 API returned error. function: {} - bucket: {} - error message: {}"
+                            if error.response['Error']['Code'] == 'NoSuchTagSet':
+                                log.info(errorString.format(sys._getframe().f_code.co_name, resource_id_name[0], error))
+                                my_status.warning(message='No bucket tags found')
+                            elif error.response['Error']['Code'] == 'AccessDeniedException' or \
                                 error.response['Error']['Code'] == 'UnauthorizedOperation' or \
                                 error.response['Error']['Code'] == 'AccessDenied':
+                                log.error(errorString.format(sys._getframe().f_code.co_name, resource_id_name[0], error))
                                 my_status.error(message='You are not authorized to view these resources')
                             else:
+                                log.error(errorString.format(sys._getframe().f_code.co_name, resource_id_name[0], error))
                                 my_status.error()
                             response = dict()
                         resource_tags = dict()
@@ -845,7 +849,6 @@ class resources_tags:
                 selected_resource_type = session_credentials['multi_account_role_session'].resource(self.resource_type, region_name=self.region)
             else:
                 selected_resource_type = this_session.resource(self.resource_type, region_name=self.region)
-            #boto_api_error = False
             item_count = False
             for item in list(selected_resource_type.buckets.all()):
                 try:
@@ -861,11 +864,9 @@ class resources_tags:
                     elif error.response['Error']['Code'] == 'AccessDeniedException' or \
                         error.response['Error']['Code'] == 'UnauthorizedOperation' or \
                         error.response['Error']['Code'] == 'AccessDenied':
-                        #boto_api_error = 'You are not authorized to view these resources'
                         errorString = "Boto3 API returned error. function: {} - bucket: {} - error message: {}"
                         log.error(errorString.format(sys._getframe().f_code.co_name, item.name, error))
                     else:
-                        #boto_api_error = "A Boto3 API error occurred.  Please contact your Tag Tamer administrator for assistance."
                         errorString = "Boto3 API returned error. function: {} - error message: {}"
                         log.error(errorString.format(sys._getframe().f_code.co_name, error))
 
