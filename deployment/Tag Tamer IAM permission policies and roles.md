@@ -156,6 +156,7 @@ arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
             "Sid": "VisualEditor1",
             "Effect": "Allow",
             "Action": [
+                "sts:AssumeRole",
                 "lambda:TagResource",
                 "ec2:DescribeInstances",
                 "servicecatalog:SearchProducts",
