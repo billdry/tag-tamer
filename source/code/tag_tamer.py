@@ -101,9 +101,6 @@ log.debug('The validated AWS regions are: \"%s\"', validated_regions)
 
 # Get AWS Service parameters from AWS SSM Parameter Store
 ssm_ps = ssm_parameter_store(tag_tamer_parameters.get('base_region'))
-# Fully qualified list of SSM Parameter names
-ssm_parameter_full_names = ssm_ps.form_parameter_hierarchies(tag_tamer_parameters.get('ssm_parameter_path'), tag_tamer_parameters.get('ssm_parameter_names')) 
-log.debug('The full names are: %s', ssm_parameter_full_names)
 # Get SSM Parameters names & values
 ssm_parameters = ssm_ps.ssm_get_parameter_details(tag_tamer_parameters.get('ssm_parameter_path'))
 if not ssm_parameters:
