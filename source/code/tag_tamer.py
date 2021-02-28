@@ -32,8 +32,6 @@ from service_catalog import service_catalog
 # Import getter/setter module for AWS SSM Parameter Store
 import ssm_parameter_store
 from ssm_parameter_store import ssm_parameter_store
-# Import AWS STS functions
-#from sts import get_session_credentials
 # Import Tag Tamer utility functions
 from utilities import get_aws_regions, get_resource_type_unit, verify_jwt
 
@@ -50,11 +48,14 @@ import json
 import logging
 # Import Regex
 import re
-#import OS module
+# Import OS module
 import os
-#import systems library
+# Import systems library
 import sys
-#import epoch time method
+# Import threading
+import threading
+import concurrent.futures
+# Import epoch time method
 from time import time
 
 # Read in Tag Tamer version
@@ -645,15 +646,74 @@ def tag_based_search():
             my_regions = list()
 
             # Multi-region resource tag keys & values getter
-            def _get_multi_region_tag_keys_values(my_regions, account_number, all_selected_tag_keys, all_selected_tag_values):
-                for region in my_regions:
+            #  This nested function adds region tags to the existing list of found tags
+            def _get_multi_region_tag_keys_values(my_regions, account_number, all_selected_tag_keys, all_selected_tag_values, **kwargs):
+                region_start_time = time()
+                
+                #print("\nAll Tag Keys passed to parent are: {} - {}".format(len(all_selected_tag_keys),  all_selected_tag_keys))
+                #print("\nAll Tag Values passed to parent are: {} - {}".format(len(all_selected_tag_values), all_selected_tag_values))
+                
+                #region_threads = list()
+                region_threads = dict()
+                lock = threading.Lock()
+
+                def _get_region_tags(region):
+                    nonlocal kwargs
+                    local_session_credentials = dict()
+                    local_session_credentials = kwargs.get('session_credentials')
+                    if kwargs['account_role_arn']:
+                        local_session_credentials['multi_account_role_session'] = assume_role_multi_account(**kwargs) 
                     inventory = resources_tags(resource_type, unit, region)
-                    selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**session_credentials)
+                    selected_tag_keys, execution_status_tag_keys = inventory.get_tag_keys(**local_session_credentials)
+                    selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**local_session_credentials)
+                    #print("\nCurrent Region Tag Keys are: {} - {} - {}".format(region, len(selected_tag_keys), selected_tag_keys))
+                    #print("\nCurrent Region Tag Values are: {} - {} - {}".format(region, len(selected_tag_values), selected_tag_values))
+                    return selected_tag_keys, execution_status_tag_keys, selected_tag_values, execution_status_tag_values
+                
+                def _update_all_tags(selected_tag_keys, execution_status_tag_keys, selected_tag_values, execution_status_tag_values):
+                    nonlocal all_selected_tag_keys
+                    nonlocal all_selected_tag_values
                     all_selected_tag_keys = all_selected_tag_keys + selected_tag_keys
                     all_execution_status_alert_levels.append(execution_status_tag_keys.get('alert_level'))
-                    selected_tag_values, execution_status_tag_values = inventory.get_tag_values(**session_credentials)
                     all_selected_tag_values = all_selected_tag_values + selected_tag_values
                     all_execution_status_alert_levels.append(execution_status_tag_values.get('alert_level'))
+                    #print("\nCurrent All Tag Keys after update are: {} - {}".format(len(all_selected_tag_keys),  all_selected_tag_keys))
+                    #print("\nCurrent All Tag Values after update are: {} - {}".format(len(all_selected_tag_values), all_selected_tag_values))
+                    #return all_execution_status_alert_levels
+
+                def _do_it(lock, region):
+                #def _do_it(region):
+                    selected_tag_keys, execution_status_tag_keys, selected_tag_values, execution_status_tag_values = _get_region_tags(region)
+                    lock.acquire()
+                    #status_alerts = _update_all_tags(selected_tag_keys, execution_status_tag_keys, selected_tag_values, execution_status_tag_values)
+                    _update_all_tags(selected_tag_keys, execution_status_tag_keys, selected_tag_values, execution_status_tag_values)
+                    #return status_alerts
+                    lock.release()
+                
+                for region in my_regions:
+                    region_threads[region] = threading.Thread(target=_do_it, args=(lock, region))
+                    
+                for region in my_regions:
+                    region_threads[region].start()
+
+                for region in my_regions:
+                    region_threads[region].join()
+                """
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    for region in my_regions:
+                        region_threads.append(executor.submit(_do_it, region))
+                        #print("\nThe region & thread object are: {} - {}".format(region, region_threads[region]))
+                """
+                    #for thread in concurrent.futures.as_completed(region_threads):
+                    #    try:
+                            #print("\nThis thread's result is: ", thread.result())
+                    #    except Exception as error:
+                    #        print("\nThis thread's error is: ", error)
+                
+
+
+                region_end_time = time()
+                print("\nThe time taken to get all region tags for this account is: ", region_end_time - region_start_time)
                 return all_selected_tag_keys, all_selected_tag_values
             
             # Get the user's assigned Cognito user pool group's IAM role ARN
@@ -666,25 +726,32 @@ def tag_based_search():
             else:
                 my_regions = validated_regions
 
+            account_start_time = time()
+            
+            kwargs = dict()
+            kwargs['user_email'] = user_email
+            kwargs['user_id'] = claims.get('username')
+            kwargs['user_source'] = user_source
+            kwargs['session_credentials'] = session_credentials
+            kwargs['account_role_arn'] = False
             # Get Tag Tamer base account's tag keys & values from all regions
             base_account_number = re.search('\d{12}', cognito_user_group_arn)
-            all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(my_regions, base_account_number.group(), all_selected_tag_keys, all_selected_tag_values)
+            all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(my_regions, base_account_number.group(), all_selected_tag_keys, all_selected_tag_values, **kwargs)
+                
 
             # Get additional multi accounts' tag keys & values from all regions
             for account_number in multi_accounts:
                 # Swap account number in Cognito user's assigned IAM role ARN
                 # Cognito user's assumed IAM role name must be identical in all AWS accounts  
                 account_role_arn = re.sub('\d{12}', account_number, cognito_user_group_arn)
-                kwargs = dict()
                 kwargs['account_role_arn'] = account_role_arn
-                kwargs['user_email'] = user_email
-                kwargs['user_id'] = claims.get('username')
-                kwargs['user_source'] = user_source
-                kwargs['session_credentials'] = session_credentials
-                multi_account_role_session = assume_role_multi_account(**kwargs)
-                session_credentials['multi_account_role_session'] = multi_account_role_session 
-                if session_credentials.get('multi_account_role_session'):
-                    all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(my_regions, account_number, all_selected_tag_keys, all_selected_tag_values)
+                #multi_account_role_session = assume_role_multi_account(**kwargs)
+                #session_credentials['multi_account_role_session'] = multi_account_role_session 
+                #if session_credentials.get('multi_account_role_session'):
+                #    all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(my_regions, account_number, all_selected_tag_keys, all_selected_tag_values)
+                all_selected_tag_keys, all_selected_tag_values = _get_multi_region_tag_keys_values(my_regions, account_number, all_selected_tag_keys, all_selected_tag_values, **kwargs)
+            account_end_time = time()
+            print("\nThe time taken to get the tags for all accounts is: ", account_end_time - account_start_time)
             
             
             #Remove duplicate tag values & sort
