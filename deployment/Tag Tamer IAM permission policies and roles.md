@@ -132,7 +132,7 @@ arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
     ]
 }
 ```
-### Example IAM role permissions policy allowing user to perform all Tag Tamer web app actions
+### Example IAM role permissions policy allowing Amazon Cognito User Pool Group to perform all Tag Tamer web app actions
 
 ```
 {
@@ -160,6 +160,7 @@ arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
                 "lambda:TagResource",
                 "ec2:DescribeInstances",
                 "servicecatalog:SearchProducts",
+                "iam:GetRole",
                 "iam:ListRoleTags",
                 "eks:ListTagsForResource",
                 "rds:DescribeGlobalClusters",
@@ -169,6 +170,7 @@ arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
                 "config:DescribeConfigRules",
                 "s3:PutObjectTagging",
                 "iam:ListRolePolicies",
+                "servicecatalog:DisassociateTagOptionFromResource",
                 "servicecatalog:UpdateTagOption",
                 "s3:DeleteObjectTagging",
                 "iam:ListPolicies",
