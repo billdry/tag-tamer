@@ -126,7 +126,6 @@ class rds_resources_tags:
             }
                 
             try:
-                #client = this_session.client(self.resource_type, region_name=self.region)
                 # Get all the resources in the region
                 my_resources = client.describe_db_clusters()
                 for item in my_resources['DBClusters']:
@@ -219,7 +218,6 @@ class rds_resources_tags:
             }
                 
             try:
-                #client = this_session.client(self.resource_type, region_name=self.region)
                 # Get all the resources in the region
                 my_resources = client.describe_db_clusters()
                 for item in my_resources['DBClusters']:
@@ -277,7 +275,6 @@ class rds_resources_tags:
 
         try:
             if chosen_resources[0][0] != "No matching resources found":
-                #client = this_session.client(self.resource_type, region_name=self.region)
                 for resource_id_name in chosen_resources:
                     resource_tags = dict()
                     sorted_resource_tags = dict()
@@ -342,7 +339,6 @@ class rds_resources_tags:
             client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
-            #client = this_session.client(self.resource_type, region_name=self.region)
             # Interate all the resources in the region
             my_resources = client.describe_db_clusters()
             if len(my_resources['DBClusters']) == 0:
@@ -395,7 +391,6 @@ class rds_resources_tags:
             client = this_session.client(self.resource_type, region_name=self.region)
 
         try:
-            #client = this_session.client(self.resource_type, region_name=self.region)
             # Interate all the resources in the region
             my_resources = client.describe_db_clusters()
             if len(my_resources['DBClusters']) == 0:
@@ -406,8 +401,8 @@ class rds_resources_tags:
                     if len(item.get('TagList')):
                         # Add all tag keys to the list
                         for tag in item['TagList']:       
-                                if not re.search("^aws:", tag['Values']):
-                                    tag_values_inventory.append(tag['Values'])
+                                if not re.search("^aws:", tag['Value']):
+                                    tag_values_inventory.append(tag['Value'])
             # Set success if tag values found else set warning
             if len(tag_values_inventory):
                 my_status.success(message='Tag values found!')
@@ -452,8 +447,6 @@ class rds_resources_tags:
             client = this_session.client(self.resource_type, region_name=self.region)
 
         for resource_arn in self.resources_to_tag:
-            #try:
-            #    client = this_session.client(self.resource_type, region_name=self.region)
             try:
                 response = client.add_tags_to_resource(
                     ResourceName=resource_arn,
@@ -467,11 +460,4 @@ class rds_resources_tags:
                     my_status.error(message='You are not authorized to modify these resources')
                 else:
                     my_status.error()
-            #except botocore.exceptions.ClientError as error:
-            #        log.error("Boto3 API returned error: {}".format(error))
-            #        resources_updated_tags["No Resources Found"] = "No Tags Applied"
-            #        if error.response['Error']['Code'] == 'AccessDeniedException' or error.response['Error']['Code'] == 'UnauthorizedOperation':                        
-            #            my_status.error(message='You are not authorized to modify these resources')
-            #        else:
-            #            my_status.error()
         return my_status.get_status()
