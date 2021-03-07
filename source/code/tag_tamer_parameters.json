@@ -1,8 +1,6 @@
 {
     "base_region": "us-east-1",
-    "additional_regions": [
-        "us-east-2"
-    ],
+    "additional_regions": [],
     "log_file_location": "./log/tag_tamer.log",
     "logging_level": "INFO",
     "ssm_parameter_path": "/tag-tamer/",
