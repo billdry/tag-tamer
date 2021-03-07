@@ -3,15 +3,15 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-# Getters & Setters for AWS RDS resource tags
+# Getters & Setters for Amazon Aurora DB cluster resource tags
 #  This class supports the main "resources_tags" class
 # Included class & methods
-# class - rds_resources_tags
-#  method - get_rds_names_ids
-#  method - get_rds_resources_tags
-#  method - get_rds_tag_keys
-#  method - get_rds_tag_values
-#  method - set_rds_resources_tags
+# class - aurora_db_resources_tags
+#  method - get_aurora_db_names_ids
+#  method - get_aurora_db_resources_tags
+#  method - get_aurora_db_tag_keys
+#  method - get_aurora_db_tag_values
+#  method - set_aurora_db_resources_tags
 
 # Import administrative functions
 from admin import execution_status
@@ -33,7 +33,7 @@ import re
 log = logging.getLogger(__name__)
 
 # Define resources_tags class to get/set resources & their assigned tags
-class rds_resources_tags:
+class aurora_db_resources_tags:
 
     # Class constructor
     def __init__(self, resource_type, region):
@@ -41,7 +41,7 @@ class rds_resources_tags:
         self.region = region
 
     # Returns a filtered list of all resource names & ID's for the resource type specified
-    def get_rds_names_ids(self, filter_tags, **session_credentials):
+    def get_aurora_db_names_ids(self, filter_tags, **session_credentials):
         my_status = execution_status()
         self.filter_tags = filter_tags
         tag_key1_state = True if self.filter_tags.get("tag_key1") else False
@@ -158,8 +158,8 @@ class rds_resources_tags:
 
             try:
                 # Get all the resources in the region
-                my_resources = client.describe_db_instances()
-                for item in my_resources["DBInstances"]:
+                my_resources = client.describe_db_clusters()
+                for item in my_resources["DBClusters"]:
                     try:
                         if item.get("TagList"):
                             tag_dict = dict()
@@ -175,15 +175,15 @@ class rds_resources_tags:
                                 )
                             ](
                                 tag_dict,
-                                item["DBInstanceIdentifier"],
-                                item["DBInstanceArn"],
+                                item["DBClusterIdentifier"],
+                                item["DBClusterArn"],
                             )
                         elif (
                             self.filter_tags.get("tag_key1") == "<No tags applied>"
                             or self.filter_tags.get("tag_key2") == "<No tags applied>"
                         ):
-                            resource_inventory[item["DBInstanceArn"]] = item[
-                                "DBInstanceIdentifier"
+                            resource_inventory[item["DBClusterArn"]] = item[
+                                "DBClusterIdentifier"
                             ]
 
                     except botocore.exceptions.ClientError as error:
@@ -287,8 +287,8 @@ class rds_resources_tags:
 
             try:
                 # Get all the resources in the region
-                my_resources = client.describe_db_instances()
-                for item in my_resources["DBInstances"]:
+                my_resources = client.describe_db_clusters()
+                for item in my_resources["DBClusters"]:
                     try:
                         if item.get("TagList"):
                             tag_dict = dict()
@@ -304,15 +304,15 @@ class rds_resources_tags:
                                 )
                             ](
                                 tag_dict,
-                                item["DBInstanceIdentifier"],
-                                item["DBInstanceArn"],
+                                item["DBClusterIdentifier"],
+                                item["DBClusterArn"],
                             )
                         elif (
                             self.filter_tags.get("tag_key1") == "<No tags applied>"
                             or self.filter_tags.get("tag_key2") == "<No tags applied>"
                         ):
-                            resource_inventory[item["DBInstanceArn"]] = item[
-                                "DBInstanceIdentifier"
+                            resource_inventory[item["DBClusterArn"]] = item[
+                                "DBClusterIdentifier"
                             ]
 
                     except botocore.exceptions.ClientError as error:
@@ -342,10 +342,10 @@ class rds_resources_tags:
 
         return resource_inventory, my_status.get_status()
 
-    # method - get_rds_resources_tags
+    # method - get_aurora_db_resources_tags
     # Returns a nested dictionary of every resource & its key:value tags for the chosen resource type
-    # List of chosen resources from get_rds_names_ids() & session credentials are arguments
-    def get_rds_resources_tags(self, chosen_resources, **session_credentials):
+    # List of chosen resources from get_aurora_db_names_ids() & session credentials are arguments
+    def get_aurora_db_resources_tags(self, chosen_resources, **session_credentials):
         my_status = execution_status()
         # Instantiate dictionaries to hold resources & their tags
         tagged_resource_inventory = dict()
@@ -430,10 +430,10 @@ class rds_resources_tags:
                 my_status.error()
         return tagged_resource_inventory, my_status.get_status()
 
-    # method - get_rds_tag_keys
+    # method - get_aurora_db_tag_keys
     # Getter method retrieves every tag:key for object's resource type
     # session credentials as the only input arguments
-    def get_rds_tag_keys(self, **session_credentials):
+    def get_aurora_db_tag_keys(self, **session_credentials):
         my_status = execution_status()
         tag_keys_inventory = list()
         # Give users ability to find resources with no tags applied
@@ -456,12 +456,12 @@ class rds_resources_tags:
 
         try:
             # Interate all the resources in the region
-            my_resources = client.describe_db_instances()
-            if len(my_resources["DBInstances"]) == 0:
+            my_resources = client.describe_db_clusters()
+            if len(my_resources["DBClusters"]) == 0:
                 tag_keys_inventory.append("No tag keys found")
-                my_status.warning(message="No Amazon RDS instances found!")
+                my_status.warning(message="No Amazon RDS clusters found!")
             else:
-                for item in my_resources["DBInstances"]:
+                for item in my_resources["DBClusters"]:
                     if item.get("TagList"):
                         # Add all tag keys to the list
                         for tag in item["TagList"]:
@@ -491,10 +491,10 @@ class rds_resources_tags:
 
         return tag_keys_inventory, my_status.get_status()
 
-    # method - get_rds_tag_values
+    # method - get_aurora_db_tag_values
     # Getter method retrieves every tag:value for object's resource type
     # session credentials as the only input arguments
-    def get_rds_tag_values(self, **session_credentials):
+    def get_aurora_db_tag_values(self, **session_credentials):
         my_status = execution_status()
         tag_values_inventory = list()
 
@@ -515,12 +515,12 @@ class rds_resources_tags:
 
         try:
             # Interate all the resources in the region
-            my_resources = client.describe_db_instances()
-            if len(my_resources["DBInstances"]) == 0:
+            my_resources = client.describe_db_clusters()
+            if len(my_resources["DBClusters"]) == 0:
                 # tag_values_inventory.append("No tag values found")
-                my_status.warning(message="No Amazon RDS instances found!")
+                my_status.warning(message="No Amazon RDS clusters found!")
             else:
-                for item in my_resources["DBInstances"]:
+                for item in my_resources["DBClusters"]:
                     if len(item.get("TagList")):
                         # Add all tag keys to the list
                         for tag in item["TagList"]:
@@ -553,10 +553,10 @@ class rds_resources_tags:
 
         return tag_values_inventory, my_status.get_status()
 
-    # method - set_rds_resources_tags
+    # method - set_aurora_db_resources_tags
     # Setter method to update tags on user-selected resources
     # 2 inputs - list of resource arns to tag, list of individual tag key:value dictionaries
-    def set_rds_resources_tags(
+    def set_aurora_db_resources_tags(
         self, resources_to_tag, chosen_tags, **session_credentials
     ):
         my_status = execution_status()
@@ -584,7 +584,7 @@ class rds_resources_tags:
                 response = client.add_tags_to_resource(
                     ResourceName=resource_arn, Tags=self.chosen_tags
                 )
-                my_status.success(message="Amazon RDS instance tags updated successfully!")
+                my_status.success(message="RDS Cluster tags updated successfully!")
             except botocore.exceptions.ClientError as error:
                 log.error("Boto3 API returned error: {}".format(error))
                 resources_updated_tags["No Resources Found"] = "No Tags Applied"
