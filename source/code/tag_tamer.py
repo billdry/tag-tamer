@@ -1506,7 +1506,9 @@ def apply_tags_to_resources():
                         set_resources_tags_execution_status.get("alert_level")
                     )
                     region_execution_status_message = (
-                        str(region)
+                        str(account_number)
+                        + " - "
+                        + str(region)
                         + " - "
                         + str(set_resources_tags_execution_status.get("status_message"))
                     )
@@ -1533,11 +1535,29 @@ def apply_tags_to_resources():
                 ] = region_sorted_tagged_inventory
 
         if len(all_updated_sorted_tagged_inventory):
+            log.info(
+                '"{}" invoked "{}" on {} from location: "{}" using AWSAuth access key id: {} - SUCCESS'.format(
+                    user_email,
+                    sys._getframe().f_code.co_name,
+                    date_time_now(),
+                    user_source,
+                    session_credentials["AccessKeyId"],
+                )
+            )
             return render_template(
                 "updated-tags.html",
                 all_updated_inventory=all_updated_sorted_tagged_inventory,
             )
         else:
+            log.warning(
+                '"{}" invoked "{}" on {} from location: "{}" using AWSAuth access key id: {} - SUCCESS'.format(
+                    user_email,
+                    sys._getframe().f_code.co_name,
+                    date_time_now(),
+                    user_source,
+                    session_credentials["AccessKeyId"],
+                )
+            )
             return render_template("blank.html")
     else:
         log.error(

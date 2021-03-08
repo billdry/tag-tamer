@@ -61,7 +61,7 @@ def get_resource_type_unit(type):
             resource_type = "rds"
             unit = "rdsclusters"
         elif type == "rdsInstances":
-            resource_type = "rds"
+            resource_type = "rdsInstances"
             unit = "rdsInstances"
         elif type == "s3":
             resource_type = "s3"

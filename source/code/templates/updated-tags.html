@@ -26,7 +26,7 @@ SPDX-License-Identifier: MIT-0 -->
         {% endwith %}
         <br>
         {% if all_updated_inventory %}
-        <h3>Here are your selected resources with updated tags</h3>
+        <h3>Here are your filtered resources with updated tags</h3>
         <br>
         <table style="width: 800px" class="table table-bordered table-striped">
             {% for account_number, per_account_inventory in all_updated_inventory.items() %}

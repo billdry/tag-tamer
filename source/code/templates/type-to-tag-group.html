@@ -17,11 +17,11 @@ SPDX-License-Identifier: MIT-0 -->
         <form method="post" action="{{ url_for('get_tag_group_names') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-check">
-                <input class="form-check-input" type="radio" id="rdsRadio" value="rds" name="resource_type">
+                <input class="form-check-input" type="radio" id="rdsRadio" value="rds" name="resource_type" checked>
                     <label class="form-check-label" for="rdsRadio">Amazon Aurora DB Clusters</label>
             </div>
             <div class="form-check">
-                <input class="form-check-input" type="radio" id="ebsRadio" value="ebs" name="resource_type" checked>
+                <input class="form-check-input" type="radio" id="ebsRadio" value="ebs" name="resource_type" >
                     <label class="form-check-label" for="ebsRadio">Amazon EBS Volumes</label>
             </div>
             <div class="form-check">

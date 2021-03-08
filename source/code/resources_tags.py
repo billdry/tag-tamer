@@ -47,8 +47,11 @@ class resources_tags:
     # Class constructor
     def __init__(self, resource_type, unit, region):
         # EBS uses the "ec2" Boto3 client
+        # Both RDS instances & Aurora DB clusters use the "rds" Boto3 client
         if resource_type == "ebs":
             self.resource_type = "ec2"
+        elif resource_type == "rdsInstances":
+            self.resource_type = "rds"
         else:
             self.resource_type = resource_type
         self.unit = unit

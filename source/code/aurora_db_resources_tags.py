@@ -159,6 +159,7 @@ class aurora_db_resources_tags:
             try:
                 # Get all the resources in the region
                 my_resources = client.describe_db_clusters()
+
                 for item in my_resources["DBClusters"]:
                     try:
                         if item.get("TagList"):
@@ -339,7 +340,6 @@ class aurora_db_resources_tags:
                     )
                 else:
                     my_status.error()
-
         return resource_inventory, my_status.get_status()
 
     # method - get_aurora_db_resources_tags
@@ -457,9 +457,10 @@ class aurora_db_resources_tags:
         try:
             # Interate all the resources in the region
             my_resources = client.describe_db_clusters()
+
             if len(my_resources["DBClusters"]) == 0:
                 tag_keys_inventory.append("No tag keys found")
-                my_status.warning(message="No Amazon RDS clusters found!")
+                my_status.warning(message="No Amazon Aurora DB clusters found!")
             else:
                 for item in my_resources["DBClusters"]:
                     if item.get("TagList"):
@@ -516,9 +517,10 @@ class aurora_db_resources_tags:
         try:
             # Interate all the resources in the region
             my_resources = client.describe_db_clusters()
+
             if len(my_resources["DBClusters"]) == 0:
                 # tag_values_inventory.append("No tag values found")
-                my_status.warning(message="No Amazon RDS clusters found!")
+                my_status.warning(message="No Amazon Aurora DB clusters found!")
             else:
                 for item in my_resources["DBClusters"]:
                     if len(item.get("TagList")):
@@ -584,7 +586,7 @@ class aurora_db_resources_tags:
                 response = client.add_tags_to_resource(
                     ResourceName=resource_arn, Tags=self.chosen_tags
                 )
-                my_status.success(message="RDS Cluster tags updated successfully!")
+                my_status.success(message="RDS Aurora DB Cluster tags updated successfully!")
             except botocore.exceptions.ClientError as error:
                 log.error("Boto3 API returned error: {}".format(error))
                 resources_updated_tags["No Resources Found"] = "No Tags Applied"
